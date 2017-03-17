@@ -12,10 +12,6 @@ pub fn merge_defaults(c: &mut Config) {
     c.set_default("global.padding_left", " ").unwrap();
     c.set_default("global.padding_right", " ").unwrap();
 
-    c.set_default("modules.prompt.output", "$").unwrap();
-    c.set_default("modules.prompt.bg_success", "green").unwrap();
-    c.set_default("modules.prompt.bg_error", "red").unwrap();
-
     c.set_default("modules.exit_code.bg_success", "green").unwrap();
     c.set_default("modules.exit_code.bg_error", "red").unwrap();
 
@@ -25,6 +21,10 @@ pub fn merge_defaults(c: &mut Config) {
     // c.set_default("modules.git.symbol_push", "⇡").unwrap();
     // c.set_default("modules.git.symbol_pull", "⇣").unwrap();
     c.set_default("modules.git.show_diff_stats", true).unwrap();
+
+    c.set_default("modules.prompt.output", "$").unwrap();
+    c.set_default("modules.prompt.bg_success", "green").unwrap();
+    c.set_default("modules.prompt.bg_error", "red").unwrap();
 }
 
 /// Generic formatting method
@@ -54,11 +54,18 @@ pub fn format_module<'a>(c: &mut Config,
     let separator = c.get_str(&format!("modules.{}.separator", name))
         .unwrap_or(c.get_str("global.separator").unwrap_or_default());
 
+    // Override the output if there is "output" in this module's config
+    let output = if let Some(s) = c.get_str(&format!("modules.{}.output", name)) {
+        s
+    } else {
+        output.unwrap()
+    };
+
     // Format the main content
     let mut content = format!("\\[{}\\]{}{}{}\\[{}\\]",
                               fg.on(bg).prefix(),
                               padding_left,
-                              output.unwrap(),
+                              output,
                               padding_right,
                               fg.on(bg).suffix());
 
@@ -148,7 +155,6 @@ pub fn format_module_directory<'a>(c: &mut Config,
                                    last_successful: Option<&'a str>)
                                    -> (Option<&'a str>, Option<ANSIString<'static>>) {
     use std::env;
-    // use std::fs;
     use std::path;
 
     let home = env::var("HOME").unwrap();
@@ -199,11 +205,7 @@ pub fn format_module_git<'a>(c: &mut Config,
                     }
                 }
             }
-
-
         }
-
-
     }
 
     if output.is_empty() {
