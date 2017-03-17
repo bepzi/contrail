@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["B <ben01189998819991197253@users.noreply.github.com>"]
 
 [dependencies]
-# ansi_term = "0.9"
+ansi_term = "0.9"
 clap = "2.20"
 config = "0.4"
-# git2 = "0.6"
+git2 = "0.6"
