@@ -34,7 +34,7 @@ pub fn format_module<'a>(c: &mut Config,
                          last_successful: Option<&str>)
                          -> (Option<&'a str>, Option<ANSIString<'static>>) {
     // Formatting was not successful if there was nothing to format
-    if output.is_none() {
+    if c.get_str(&format!("modules.{}.output", name)).is_none() && output.is_none() {
         return (None, None);
     }
 

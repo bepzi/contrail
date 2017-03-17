@@ -78,8 +78,8 @@ fn main() {
                 modules::format_module_prompt(&mut c, last_successful_format, exit_code)
             }
             _ => {
-                let output = c.get_str(&format!("modules.{}.output", name));
-                modules::format_module(&mut c, name, output, last_successful_format)
+                // The output will be found in the config file
+                modules::format_module(&mut c, name, None, last_successful_format)
             }
         };
 
