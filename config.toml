@@ -1,6 +1,6 @@
 [global]
 modules = ["directory", "git", "prompt"]
-# separator = ""
+separator = ""
 
 [modules.directory]
 background = "cyan"
