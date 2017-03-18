@@ -1,4 +1,4 @@
-use ansi_term::{ANSIString, Colour};
+use ansi_term::{ANSIString, Colour, Style};
 use config::Config;
 
 /// Merges in the default values for the program
@@ -56,6 +56,8 @@ pub fn format_module<'a>(c: &mut Config,
     let separator = c.get_str(&format!("modules.{}.separator", name))
         .unwrap_or_else(|| c.get_str("global.separator").unwrap_or_default());
 
+    let main_style = Style::new().on(bg).fg(fg);
+
     // Override the output if there is "output" in this module's config
     let output = if let Some(s) = c.get_str(&format!("modules.{}.output", name)) {
         s
@@ -65,14 +67,14 @@ pub fn format_module<'a>(c: &mut Config,
 
     // Format the main content
     let mut content = format!("\\[{}\\]{}{}{}\\[{}\\]",
-                              fg.on(bg).prefix(),
+                              main_style.prefix(),
                               padding_left,
                               output,
                               padding_right,
-                              fg.on(bg).suffix());
+                              main_style.suffix());
 
     // Format the separator
-    let fg = bg;
+    let main_style = main_style.on(fg).fg(bg);
     if let Some(name) = last_successful {
         // There is a visible module that comes after this one
         let next_bg = c.get_str(&format!("modules.{}.background", name))
@@ -81,16 +83,16 @@ pub fn format_module<'a>(c: &mut Config,
 
         content = format!("{}\\[{}\\]{}\\[{}\\]",
                           content,
-                          fg.on(next_bg).prefix(),
+                          main_style.on(next_bg).prefix(),
                           separator,
-                          fg.on(next_bg).suffix());
+                          main_style.on(next_bg).suffix());
     } else {
         // This is the final module
         content = format!("{}\\[{}\\]{}\\[{}\\]",
                           content,
-                          fg.prefix(),
+                          bg.prefix(),
                           separator,
-                          fg.suffix());
+                          bg.suffix());
     }
 
     (Some(name), Some(ANSIString::from(content)))
