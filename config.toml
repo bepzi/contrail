@@ -4,4 +4,3 @@ modules = ["directory", "git", "prompt"]
 
 [modules.directory]
 background = "cyan"
-output = "$(pwd)"
