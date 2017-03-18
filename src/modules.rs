@@ -8,6 +8,7 @@ pub fn merge_defaults(c: &mut Config) {
         .unwrap();
     c.set_default("global.foreground", "bright_white").unwrap();
     c.set_default("global.background", "blue").unwrap();
+    c.set_default("global.style", "default").unwrap();
     c.set_default("global.separator", "").unwrap();
     c.set_default("global.padding_left", " ").unwrap();
     c.set_default("global.padding_right", " ").unwrap();
@@ -56,7 +57,9 @@ pub fn format_module<'a>(c: &mut Config,
     let separator = c.get_str(&format!("modules.{}.separator", name))
         .unwrap_or_else(|| c.get_str("global.separator").unwrap_or_default());
 
-    let main_style = Style::new().on(bg).fg(fg);
+    let main_style = c.get_str(&format!("modules.{}.style", name))
+        .unwrap_or_else(|| c.get_str("global.style").unwrap_or_default());
+    let main_style = string_to_style(main_style).on(bg).fg(fg);
 
     // Override the output if there is "output" in this module's config
     let output = if let Some(s) = c.get_str(&format!("modules.{}.output", name)) {
@@ -124,6 +127,22 @@ fn string_to_colour(s: String) -> Colour {
         "white" => Colour::Fixed(7),
         "bright_white" => Colour::Fixed(15),
         _ => panic!("Invalid color option: {} in config file!", s),
+    }
+}
+
+fn string_to_style(s: String) -> Style {
+    let s = s.to_lowercase();
+    match s.as_ref() {
+        "default" | "" | "normal" => Style::new(),
+        "bold" => Style::new().bold(),
+        "dimmed" => Style::new().dimmed(),
+        "italic" => Style::new().italic(),
+        "underline" => Style::new().underline(),
+        "blink" => Style::new().blink(),
+        "reverse" => Style::new().reverse(),
+        "hidden" => Style::new().hidden(),
+        "strikethrough" => Style::new().strikethrough(),
+        _ => panic!("Unknown style property: {} in config file!", s),
     }
 }
 
