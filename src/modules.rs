@@ -12,7 +12,7 @@ pub fn merge_defaults(c: &mut Config) {
     c.set_default("global.padding_left", " ").unwrap();
     c.set_default("global.padding_right", " ").unwrap();
 
-    c.set_default("modules.directory.max_depth", 6).unwrap();
+    c.set_default("modules.directory.max_depth", 4).unwrap();
 
     c.set_default("modules.exit_code.bg_success", "green").unwrap();
     c.set_default("modules.exit_code.bg_error", "red").unwrap();
@@ -162,29 +162,36 @@ pub fn format_module_directory<'a>(c: &mut Config,
     let home = env::var("HOME").unwrap();
     let cwd = env::current_dir().unwrap();
 
-    let mut directory = env::current_dir().unwrap();
-
     // Convert "/home/user/directory" to "~/directory"
-    if let Ok(stripped_dir) = cwd.strip_prefix(&home) {
-        directory = PathBuf::from("~").join(stripped_dir);
+    let mut shortened_cwd: PathBuf;
+    if let Ok(stripped_cwd) = cwd.strip_prefix(&home) {
+        shortened_cwd = PathBuf::from("~").join(stripped_cwd);
+    } else {
+        shortened_cwd = env::current_dir().unwrap();
     }
 
-    // Current directory depth
-    let depth = directory.components().count();
+    let depth = shortened_cwd.components().count();
 
     // Max number of directories we want to see
     let max_depth = c.get_int("modules.directory.max_depth").unwrap_or_default() as usize;
 
-    // if depth > max_depth {
-    //     let short_path = PathBuf::new();
-    //     for i in 0..(max_depth / 2) {
+    if depth > max_depth {
+        let comp_iter = shortened_cwd.clone();
+        let comp_iter = comp_iter.components();
 
-    //     }
-    // }
+        shortened_cwd = PathBuf::new();
+        for (i, component) in comp_iter.enumerate() {
+            if i < (max_depth / 2) || i >= (depth - (max_depth / 2)) {
+                shortened_cwd.push(component.as_os_str());
+            } else if i == (max_depth / 2) {
+                shortened_cwd.push("...");
+            }
+        }
+    }
 
     format_module(c,
                   "directory",
-                  Some(format!("{}", directory.display())),
+                  Some(format!("{}", shortened_cwd.display())),
                   last_successful)
 }
 
