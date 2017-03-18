@@ -12,6 +12,8 @@ pub fn merge_defaults(c: &mut Config) {
     c.set_default("global.padding_left", " ").unwrap();
     c.set_default("global.padding_right", " ").unwrap();
 
+    c.set_default("modules.directory.max_depth", 6).unwrap();
+
     c.set_default("modules.exit_code.bg_success", "green").unwrap();
     c.set_default("modules.exit_code.bg_error", "red").unwrap();
 
@@ -40,19 +42,19 @@ pub fn format_module<'a>(c: &mut Config,
 
     // Get config options
     let fg = c.get_str(&format!("modules.{}.foreground", name))
-        .unwrap_or(c.get_str("global.foreground").unwrap_or_default());
+        .unwrap_or_else(|| c.get_str("global.foreground").unwrap_or_default());
     let fg = string_to_colour(fg);
 
     let bg = c.get_str(&format!("modules.{}.background", name))
-        .unwrap_or(c.get_str("global.background").unwrap_or_default());
+        .unwrap_or_else(|| c.get_str("global.background").unwrap_or_default());
     let bg = string_to_colour(bg);
 
     let padding_left = c.get_str(&format!("modules.{}.padding_left", name))
-        .unwrap_or(c.get_str("global.padding_left").unwrap_or_default());
+        .unwrap_or_else(|| c.get_str("global.padding_left").unwrap_or_default());
     let padding_right = c.get_str(&format!("modules.{}.padding_right", name))
-        .unwrap_or(c.get_str("global.padding_right").unwrap_or_default());
+        .unwrap_or_else(|| c.get_str("global.padding_right").unwrap_or_default());
     let separator = c.get_str(&format!("modules.{}.separator", name))
-        .unwrap_or(c.get_str("global.separator").unwrap_or_default());
+        .unwrap_or_else(|| c.get_str("global.separator").unwrap_or_default());
 
     // Override the output if there is "output" in this module's config
     let output = if let Some(s) = c.get_str(&format!("modules.{}.output", name)) {
@@ -74,7 +76,7 @@ pub fn format_module<'a>(c: &mut Config,
     if let Some(name) = last_successful {
         // There is a visible module that comes after this one
         let next_bg = c.get_str(&format!("modules.{}.background", name))
-            .unwrap_or(c.get_str("global.background").unwrap_or_default());
+            .unwrap_or_else(|| c.get_str("global.background").unwrap_or_default());
         let next_bg = string_to_colour(next_bg);
 
         content = format!("{}\\[{}\\]{}\\[{}\\]",
@@ -103,22 +105,22 @@ fn string_to_colour(s: String) -> Colour {
 
     let s = s.to_lowercase();
     match s.as_ref() {
-        "black" => Colour::Black,
-        "bright_black" => Colour::Fixed(008),
-        "red" => Colour::Red,
-        "bright_red" => Colour::Fixed(009),
-        "green" => Colour::Green,
-        "bright_green" => Colour::Fixed(010),
-        "yellow" => Colour::Yellow,
-        "bright_yellow" => Colour::Fixed(011),
-        "blue" => Colour::Blue,
-        "bright_blue" => Colour::Fixed(012),
-        "purple" => Colour::Purple,
-        "bright_purple" => Colour::Fixed(013),
-        "cyan" => Colour::Cyan,
-        "bright_cyan" => Colour::Fixed(014),
-        "white" => Colour::White,
-        "bright_white" => Colour::Fixed(015),
+        "black" => Colour::Fixed(0),
+        "bright_black" => Colour::Fixed(8),
+        "red" => Colour::Fixed(1),
+        "bright_red" => Colour::Fixed(9),
+        "green" => Colour::Fixed(2),
+        "bright_green" => Colour::Fixed(10),
+        "yellow" => Colour::Fixed(3),
+        "bright_yellow" => Colour::Fixed(11),
+        "blue" => Colour::Fixed(4),
+        "bright_blue" => Colour::Fixed(12),
+        "purple" => Colour::Fixed(5),
+        "bright_purple" => Colour::Fixed(13),
+        "cyan" => Colour::Fixed(6),
+        "bright_cyan" => Colour::Fixed(14),
+        "white" => Colour::Fixed(7),
+        "bright_white" => Colour::Fixed(15),
         _ => panic!("Invalid color option: {} in config file!", s),
     }
 }
@@ -155,20 +157,35 @@ pub fn format_module_directory<'a>(c: &mut Config,
                                    last_successful: Option<&'a str>)
                                    -> (Option<&'a str>, Option<ANSIString<'static>>) {
     use std::env;
-    use std::path;
+    use std::path::PathBuf;
 
     let home = env::var("HOME").unwrap();
     let cwd = env::current_dir().unwrap();
 
     let mut directory = env::current_dir().unwrap();
 
+    // Convert "/home/user/directory" to "~/directory"
     if let Ok(stripped_dir) = cwd.strip_prefix(&home) {
-        directory = path::PathBuf::from("~").join(stripped_dir);
+        directory = PathBuf::from("~").join(stripped_dir);
     }
 
-    let output = format!("{}", directory.display());
+    // Current directory depth
+    let depth = directory.components().count();
 
-    format_module(c, "directory", Some(output), last_successful)
+    // Max number of directories we want to see
+    let max_depth = c.get_int("modules.directory.max_depth").unwrap_or_default() as usize;
+
+    // if depth > max_depth {
+    //     let short_path = PathBuf::new();
+    //     for i in 0..(max_depth / 2) {
+
+    //     }
+    // }
+
+    format_module(c,
+                  "directory",
+                  Some(format!("{}", directory.display())),
+                  last_successful)
 }
 
 pub fn format_module_git<'a>(c: &mut Config,
@@ -216,5 +233,50 @@ pub fn format_module_git<'a>(c: &mut Config,
     // let symbol_push = c.get_str("modules.git.symbol_push").unwrap_or_default();
     // let symbol_pull = c.get_str("modules.git.symbol_pull").unwrap_or_default();
 
-    return format_module(c, "git", Some(output), last_successful);
+    format_module(c, "git", Some(output), last_successful)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_string_to_colour() {
+        const CONTENT: &'static str = "hi";
+
+        struct Test<'a> {
+            input: &'static str,
+            expected: &'a str,
+        }
+
+        let tests = [Test {
+                         input: "green",
+                         expected: &format!("\x1B[38;5;2m{}\x1B[0m", CONTENT),
+                     },
+                     Test {
+                         input: "bright_green",
+                         expected: &format!("\x1B[38;5;10m{}\x1B[0m", CONTENT),
+                     }];
+
+        for test in &tests {
+            let result = string_to_colour(test.input.to_string());
+            let result = format!("{}", result.paint(CONTENT));
+
+            assert_eq!(test.expected, result);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_string_to_colour_invalid_input() {
+        struct Test {
+            input: &'static str,
+        }
+
+        let tests = [Test { input: "green" }, Test { input: "invalid" }];
+
+        for test in &tests {
+            string_to_colour(test.input.to_string());
+        }
+    }
 }
