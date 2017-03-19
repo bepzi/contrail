@@ -3,9 +3,7 @@ use config::Config;
 
 /// Merges in the default values for the program
 pub fn merge_defaults(c: &mut Config) {
-    c.set_default("global.modules",
-                     vec!["exit_code", "directory", "git", "prompt"])
-        .unwrap();
+    c.set_default("global.modules", vec!["directory", "git", "prompt"]).unwrap();
     c.set_default("global.foreground", "bright_white").unwrap();
     c.set_default("global.background", "blue").unwrap();
     c.set_default("global.style", "default").unwrap();
