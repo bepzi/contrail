@@ -291,7 +291,6 @@ pub fn format_module_git<'a>(c: &mut Config,
     } else {
         format_module(c, "git", Some(output), last_successful)
     }
-    // let symbol_clean = c.get_str("modules.git.symbol_clean").unwrap_or_default();
 }
 
 #[cfg(test)]
