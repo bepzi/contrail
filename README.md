@@ -75,11 +75,11 @@ A list of every available option is in the `example_config.toml` file.
 Every module accepts at least two color options: `foreground` and
 `background`. You can set them to *one* of the following strings:
 
-```toml 
-["black", "bright_black", "red", "bright_red", "green",
+```
+"black", "bright_black", "red", "bright_red", "green",
 "bright_green", "yellow", "bright_yellow", "blue", "bright_blue",
 "purple", "bright_purple", "cyan", "bright_cyan", "white",
-"bright_white"]
+"bright_white"
 ```
 
 So if I wanted to make the foreground of the "git" module green, with
@@ -118,9 +118,9 @@ Every module accepts a `style` option that will (you guessed it) style
 the text accordingly. Be aware that your terminal emulator might not
 support all of these effects.
 
-```toml
-["bold", "dimmed", "italic", "underline", "blink", "reverse",
-"hidden", "strikethrough"]
+```
+"bold", "dimmed", "italic", "underline", "blink", "reverse",
+"hidden", "strikethrough"
 ```
 
 An example:
