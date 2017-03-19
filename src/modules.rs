@@ -21,9 +21,10 @@ pub fn merge_defaults(c: &mut Config) {
     // c.set_default("modules.git.symbol_clean", "").unwrap();
     c.set_default("modules.git.symbol_insertion", "+").unwrap();
     c.set_default("modules.git.symbol_deletion", "-").unwrap();
-    // c.set_default("modules.git.symbol_push", "⇡").unwrap();
+    c.set_default("modules.git.symbol_push", "⇡").unwrap();
     // c.set_default("modules.git.symbol_pull", "⇣").unwrap();
     c.set_default("modules.git.show_diff_stats", true).unwrap();
+    c.set_default("modules.git.show_unpushed", true).unwrap();
 
     c.set_default("modules.prompt.output", "$").unwrap();
     c.set_default("modules.prompt.bg_success", "green").unwrap();
@@ -105,28 +106,28 @@ pub fn format_module<'a>(c: &mut Config,
 // See: https://upload.wikimedia.org/wikipedia/commons/1/15/Xterm_256color_chart.svg
 fn string_to_colour(s: String) -> Colour {
     if let Ok(i) = s.parse::<u8>() {
-        return Colour::Fixed(i);
-    }
-
-    let s = s.to_lowercase();
-    match s.as_ref() {
-        "black" => Colour::Fixed(0),
-        "bright_black" => Colour::Fixed(8),
-        "red" => Colour::Fixed(1),
-        "bright_red" => Colour::Fixed(9),
-        "green" => Colour::Fixed(2),
-        "bright_green" => Colour::Fixed(10),
-        "yellow" => Colour::Fixed(3),
-        "bright_yellow" => Colour::Fixed(11),
-        "blue" => Colour::Fixed(4),
-        "bright_blue" => Colour::Fixed(12),
-        "purple" => Colour::Fixed(5),
-        "bright_purple" => Colour::Fixed(13),
-        "cyan" => Colour::Fixed(6),
-        "bright_cyan" => Colour::Fixed(14),
-        "white" => Colour::Fixed(7),
-        "bright_white" => Colour::Fixed(15),
-        _ => panic!("Invalid color option: {} in config file!", s),
+        Colour::Fixed(i)
+    } else {
+        let s = s.to_lowercase();
+        match s.as_ref() {
+            "black" => Colour::Fixed(0),
+            "bright_black" => Colour::Fixed(8),
+            "red" => Colour::Fixed(1),
+            "bright_red" => Colour::Fixed(9),
+            "green" => Colour::Fixed(2),
+            "bright_green" => Colour::Fixed(10),
+            "yellow" => Colour::Fixed(3),
+            "bright_yellow" => Colour::Fixed(11),
+            "blue" => Colour::Fixed(4),
+            "bright_blue" => Colour::Fixed(12),
+            "purple" => Colour::Fixed(5),
+            "bright_purple" => Colour::Fixed(13),
+            "cyan" => Colour::Fixed(6),
+            "bright_cyan" => Colour::Fixed(14),
+            "white" => Colour::Fixed(7),
+            "bright_white" => Colour::Fixed(15),
+            _ => panic!("Invalid color option: {} in config file!", s),
+        }
     }
 }
 
@@ -219,16 +220,58 @@ pub fn format_module_directory<'a>(c: &mut Config,
 pub fn format_module_git<'a>(c: &mut Config,
                              last_successful: Option<&'a str>)
                              -> (Option<&'a str>, Option<ANSIString<'static>>) {
-    use git2::Repository;
+    use git2::{Branch, Error, Oid, Reference, Repository};
     use std::env;
 
     let mut output = String::new();
 
-    let repo = Repository::discover(env::current_dir().unwrap());
-    if let Ok(repo) = repo {
-        if let Ok(reference) = repo.head() {
+    if let Ok(repo) = Repository::discover(env::current_dir().unwrap_or_default()) {
+        let local = repo.head().unwrap();
+
+        // Output current branch name
+        output.push_str(local.shorthand().unwrap());
+
+        let local = Branch::wrap(local);
+
+        // Show local insertions and deletions
+        let show_diffs = c.get_bool("modules.git.show_diff_stats").unwrap_or_default();
+        if show_diffs {
+            let diff_stats = repo.diff_index_to_workdir(None, None).unwrap();
+            let diff_stats = diff_stats.stats().unwrap();
+
+            if diff_stats.files_changed() > 0 {
+                let symbol_deletion = c.get_str("modules.git.symbol_deletion").unwrap_or_default();
+                let symbol_insertion = c.get_str("modules.git.symbol_insertion")
+                    .unwrap_or_default();
+
+                output.push_str(&format!(" ({}{}, {}{})",
+                                         symbol_deletion,
+                                         diff_stats.deletions(),
+                                         symbol_insertion,
+                                         diff_stats.insertions()));
+            }
+        }
+
+        // Show unpushed commits
+        let show_unpushed = c.get_bool("modules.git.show_unpushed").unwrap_or_default();
+        if show_unpushed {
+            if let Ok(upstream) = local.upstream() {
+                println!("We have an upstream!");
+            }
+        }
+    }
+
+    // let repo: Rc<Result<Repository, Error>> = Rc::from(Repository::discover(env::current_dir()
+    //                                                                             .unwrap()));
+    // let local: Option<Reference> = match repo.clone().borrow() {
+    //     Ok(r) => if let Ok(e) = r.head() { Some(e) } else { None },
+    //     _ => None,
+    // };
+
+    /*     if let Ok(repo) = repo {
+        if let Ok(local) = repo.head() {
             // Current branch name
-            output.push_str(reference.shorthand().unwrap());
+            output.push_str(local.shorthand().unwrap());
 
             let show_diffs = c.get_bool("modules.git.show_diff_stats").unwrap_or_default();
             // Insertions and deletions
@@ -250,18 +293,30 @@ pub fn format_module_git<'a>(c: &mut Config,
                     }
                 }
             }
+
+            let show_unpushed = c.get_bool("modules.git.show_unpushed").unwrap_or_default();
+            // Unpushed commits
+            if show_unpushed {
+                let local_branch = Branch::wrap(local);
+                if let Ok(upstream) = local_branch.upstream() {
+                    let upstream_oid = Oid::from_str(upstream.name().unwrap().unwrap()).unwrap();
+                    let local_oid = Oid::from_str(local_branch.name().unwrap().unwrap()).unwrap();
+                    if let Ok((a, b)) = repo.graph_ahead_behind(local_oid, upstream_oid) {
+                        let symbol_push = c.get_str("modules.git.symbol_push").unwrap_or_default();
+                        println!("(a, b): ({}, {})", a, b);
+                    }
+                }
+            }
         }
-    }
+    } */
 
     if output.is_empty() {
-        return (None, None);
+        (None, None)
+    } else {
+        format_module(c, "git", Some(output), last_successful)
     }
-
     // let symbol_clean = c.get_str("modules.git.symbol_clean").unwrap_or_default();
-    // let symbol_push = c.get_str("modules.git.symbol_push").unwrap_or_default();
     // let symbol_pull = c.get_str("modules.git.symbol_pull").unwrap_or_default();
-
-    format_module(c, "git", Some(output), last_successful)
 }
 
 #[cfg(test)]
