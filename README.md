@@ -13,6 +13,8 @@ options that *do not work* with your setup!
 
 Currently only works on Bash shells for Linux distros.
 
+Expect frequent breaking changes.
+
 ## Installation
 
 You need the latest stable version
