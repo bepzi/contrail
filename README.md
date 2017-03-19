@@ -170,6 +170,23 @@ like setting `output = "$(rm -rf ~/*)"`.
 All screenshots with their respective config files can be found in the
 `examples` folder.
 
+A basic setup:
+
+![Directory+Prompt](examples/basic0.png)
+
+![Directory+Git+Prompt](examples/basic1.png)
+
+Slightly more fancy, with powerline symbols:
+
+![ErrorCode+Directory+Prompt+Error](examples/fancy0.png)
+
+![ErrorCode+Directory+Git+Prompt](examples/fancy1.png)
+
+I had to retouch the screenshots in GIMP to remove some antialiasing
+issues exacerbated by my powerline font not aligning correctly. I
+don't recommend using powerline symbols, although if it works for you
+go for it!
+
 ## Contributing
 
 ...is welcomed! Please submit any issues and pull requests, although
@@ -182,3 +199,11 @@ do run your code through `rustfmt` first, please.
    - [ ] Works with ZSH
    - [ ] Works with Fish
  - [ ] Functions on MacOS
+
+## Other
+
+#### "Help, when I try to run contrail it just crashes!"
+
+Make *100% sure* your config file is syntactically correct
+TOML. Otherwise, file an issue or dig into the source code and try to
+fix it :)

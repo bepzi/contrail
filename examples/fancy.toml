@@ -1,0 +1,18 @@
+[global]
+modules = ["exit_code", "directory", "git", "prompt"]
+separator = ""
+
+[modules.directory]
+background = "bright_white"
+foreground = "black"
+
+[modules.exit_code]
+bg_success = "bright_black"
+
+[modules.git]
+background = "white"
+foreground = "black"
+show_diff_stats = true
+
+[modules.prompt]
+bg_success = "bright_black"
