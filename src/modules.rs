@@ -18,12 +18,12 @@ pub fn merge_defaults(c: &mut Config) {
     c.set_default("modules.exit_code.bg_success", "green").unwrap();
     c.set_default("modules.exit_code.bg_error", "red").unwrap();
 
-    // c.set_default("modules.git.symbol_clean", "").unwrap();
     c.set_default("modules.git.symbol_insertion", "+").unwrap();
     c.set_default("modules.git.symbol_deletion", "-").unwrap();
     c.set_default("modules.git.symbol_push", "⇡").unwrap();
-    // c.set_default("modules.git.symbol_pull", "⇣").unwrap();
-    c.set_default("modules.git.show_diff_stats", true).unwrap();
+    c.set_default("modules.git.symbol_pull", "⇣").unwrap();
+    c.set_default("modules.git.show_changed", true).unwrap();
+    c.set_default("modules.git.show_diff_stats", false).unwrap();
     c.set_default("modules.git.show_unpushed", true).unwrap();
 
     c.set_default("modules.prompt.output", "$").unwrap();
@@ -220,7 +220,7 @@ pub fn format_module_directory<'a>(c: &mut Config,
 pub fn format_module_git<'a>(c: &mut Config,
                              last_successful: Option<&'a str>)
                              -> (Option<&'a str>, Option<ANSIString<'static>>) {
-    use git2::{Branch, Error, Oid, Reference, Repository};
+    use git2::{Branch, Repository};
     use std::env;
 
     let mut output = String::new();
@@ -231,84 +231,60 @@ pub fn format_module_git<'a>(c: &mut Config,
         // Output current branch name
         output.push_str(local.shorthand().unwrap());
 
-        let local = Branch::wrap(local);
-
-        // Show local insertions and deletions
+        // Show local changes
         let show_diffs = c.get_bool("modules.git.show_diff_stats").unwrap_or_default();
-        if show_diffs {
+        let show_changed = c.get_bool("modules.git.show_changed").unwrap_or_default();
+        if show_changed {
             let diff_stats = repo.diff_index_to_workdir(None, None).unwrap();
             let diff_stats = diff_stats.stats().unwrap();
 
             if diff_stats.files_changed() > 0 {
-                let symbol_deletion = c.get_str("modules.git.symbol_deletion").unwrap_or_default();
                 let symbol_insertion = c.get_str("modules.git.symbol_insertion")
                     .unwrap_or_default();
 
-                output.push_str(&format!(" ({}{}, {}{})",
-                                         symbol_deletion,
-                                         diff_stats.deletions(),
-                                         symbol_insertion,
-                                         diff_stats.insertions()));
+                if show_diffs {
+                    // Show actual number of insertions or deletions
+                    let symbol_deletion = c.get_str("modules.git.symbol_deletion")
+                        .unwrap_or_default();
+                    output.push_str(&format!(" ({}{}, {}{})",
+                                             symbol_deletion,
+                                             diff_stats.deletions(),
+                                             symbol_insertion,
+                                             diff_stats.insertions()));
+                } else {
+                    // Do not show insertions nor deletions, just say
+                    // something was changed
+                    output.push_str(&format!(" {}", symbol_insertion));
+                }
             }
         }
 
-        // Show unpushed commits
+        let local = Branch::wrap(local);
+
+        // Show unpushed/unpulled commits
         let show_unpushed = c.get_bool("modules.git.show_unpushed").unwrap_or_default();
         if show_unpushed {
             if let Ok(upstream) = local.upstream() {
-                println!("We have an upstream!");
+                let local_ref = local.get();
+                let upstream_ref = upstream.get();
+
+                if let Ok((ahead, behind)) =
+                    repo.graph_ahead_behind(local_ref.target().unwrap(),
+                                            upstream_ref.target().unwrap()) {
+
+                    if ahead != 0 {
+                        let symbol_push = c.get_str("modules.git.symbol_push").unwrap_or_default();
+                        output.push_str(&format!(" {}{}", symbol_push, ahead));
+                    }
+
+                    if behind != 0 {
+                        let symbol_pull = c.get_str("modules.git.symbol_pull").unwrap_or_default();
+                        output.push_str(&format!(" {}{}", symbol_pull, behind));
+                    }
+                }
             }
         }
     }
-
-    // let repo: Rc<Result<Repository, Error>> = Rc::from(Repository::discover(env::current_dir()
-    //                                                                             .unwrap()));
-    // let local: Option<Reference> = match repo.clone().borrow() {
-    //     Ok(r) => if let Ok(e) = r.head() { Some(e) } else { None },
-    //     _ => None,
-    // };
-
-    /*     if let Ok(repo) = repo {
-        if let Ok(local) = repo.head() {
-            // Current branch name
-            output.push_str(local.shorthand().unwrap());
-
-            let show_diffs = c.get_bool("modules.git.show_diff_stats").unwrap_or_default();
-            // Insertions and deletions
-            if show_diffs {
-                if let Ok(diff) = repo.diff_index_to_workdir(None, None) {
-                    if let Ok(stats) = diff.stats() {
-                        if stats.files_changed() > 0 {
-                            let symbol_deletion = c.get_str("modules.git.symbol_deletion")
-                                .unwrap_or_default();
-                            let symbol_insertion = c.get_str("modules.git.symbol_insertion")
-                                .unwrap_or_default();
-
-                            output.push_str(&format!(" ({}{}, {}{})",
-                                                     symbol_deletion,
-                                                     stats.deletions(),
-                                                     symbol_insertion,
-                                                     stats.insertions()));
-                        }
-                    }
-                }
-            }
-
-            let show_unpushed = c.get_bool("modules.git.show_unpushed").unwrap_or_default();
-            // Unpushed commits
-            if show_unpushed {
-                let local_branch = Branch::wrap(local);
-                if let Ok(upstream) = local_branch.upstream() {
-                    let upstream_oid = Oid::from_str(upstream.name().unwrap().unwrap()).unwrap();
-                    let local_oid = Oid::from_str(local_branch.name().unwrap().unwrap()).unwrap();
-                    if let Ok((a, b)) = repo.graph_ahead_behind(local_oid, upstream_oid) {
-                        let symbol_push = c.get_str("modules.git.symbol_push").unwrap_or_default();
-                        println!("(a, b): ({}, {})", a, b);
-                    }
-                }
-            }
-        }
-    } */
 
     if output.is_empty() {
         (None, None)
@@ -316,7 +292,6 @@ pub fn format_module_git<'a>(c: &mut Config,
         format_module(c, "git", Some(output), last_successful)
     }
     // let symbol_clean = c.get_str("modules.git.symbol_clean").unwrap_or_default();
-    // let symbol_pull = c.get_str("modules.git.symbol_pull").unwrap_or_default();
 }
 
 #[cfg(test)]
