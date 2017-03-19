@@ -297,6 +297,80 @@ pub fn format_module_git<'a>(c: &mut Config,
 mod tests {
     use super::*;
 
+    // Note: ansi_term has already tested this kind of thing, this is
+    // just to ensure that passing a string and matching on it works
+    // like I expect (sanity-check)
+
+    #[test]
+    fn test_colour_and_style() {
+        const CONTENT: &'static str = "hi";
+
+        struct Test<'a> {
+            color: &'static str,
+            style: &'static str,
+            expected: &'a str,
+        }
+
+        let tests = [Test {
+                         color: "blue",
+                         style: "bold",
+                         expected: &format!("\x1B[1;38;5;4m{}\x1B[0m", CONTENT),
+                     },
+                     Test {
+                         color: "bright_white",
+                         style: "",
+                         expected: &format!("\x1B[38;5;15m{}\x1B[0m", CONTENT),
+                     }];
+
+        for test in &tests {
+            let style = string_to_style(test.style.to_string());
+            let color = string_to_colour(test.color.to_string());
+            let result = format!("{}", style.fg(color).paint(CONTENT));
+
+            assert_eq!(test.expected, result);
+        }
+    }
+
+    #[test]
+    fn test_string_to_style() {
+        const CONTENT: &'static str = "hi";
+
+        struct Test<'a> {
+            input: &'static str,
+            expected: &'a str,
+        }
+
+        let tests = [Test {
+                         input: "bold",
+                         expected: &format!("\x1B[1m{}\x1B[0m", CONTENT),
+                     },
+                     Test {
+                         input: "italic",
+                         expected: &format!("\x1B[3m{}\x1B[0m", CONTENT),
+                     }];
+
+        for test in &tests {
+            let result = string_to_style(test.input.to_string());
+            let result = format!("{}", result.paint(CONTENT));
+
+            assert_eq!(test.expected, result);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_string_to_style_invalid_input() {
+        struct Test {
+            input: &'static str,
+        }
+
+        let tests = [Test { input: "bold" }, Test { input: "invalid" }];
+
+        for test in &tests {
+            string_to_style(test.input.to_string());
+        }
+    }
+
     #[test]
     fn test_string_to_colour() {
         const CONTENT: &'static str = "hi";
