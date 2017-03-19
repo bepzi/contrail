@@ -182,6 +182,8 @@ Slightly more fancy, with powerline symbols:
 
 ![ErrorCode+Directory+Git+Prompt](examples/fancy1.png)
 
+![ErrorCode+Directory+Git+Prompt](examples/fancy2.png)
+
 I had to retouch the screenshots in GIMP to remove some antialiasing
 issues exacerbated by my powerline font not aligning correctly. I
 don't recommend using powerline symbols, although if it works for you
