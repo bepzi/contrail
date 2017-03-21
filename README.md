@@ -11,7 +11,8 @@ on the user's shell and terminal emulator. Each shell and terminal
 emulator supports different effects. Therefore, there may be some
 options that *do not work* with your setup!
 
-Currently only works on Bash shells for Linux distros.
+Works on Bash shells for Linux distros, *tentatively* also works on
+ZSH shells and MacOS. Fish shell not supported.
 
 Expect frequent breaking changes.
 
