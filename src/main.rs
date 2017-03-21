@@ -26,6 +26,7 @@ fn main() {
                  .value_name("FILE")
                  .help("The configuration file")
                  .takes_value(true))
+        .arg(Arg::with_name("zsh").short("z").long("zsh").help("Enable ZSH mode"))
         .get_matches();
 
     let mut c = Config::new();
@@ -43,7 +44,9 @@ fn main() {
     }
 
     // Merge in the command-line arguments
-    // (There aren't any, yet)
+    if matches.is_present("zsh") {
+        c.set("global.shell", "zsh").unwrap();
+    }
 
     // A few things to note:
     // - Calling `c.get()` is a workaround, `c.get_array()` consumes `self`
