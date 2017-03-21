@@ -47,7 +47,9 @@ In your `~/.zshrc`
 
 ```bash
 # ~/.zshrc
-PS1="$(contrail -e $? -z -c $HOME/path/to/config.toml) "
+precmd() {
+         PS1="$(contrail -e $? -z -c $HOME/path/to/config.toml) "
+}
 ```
 
 Restart/re-launch your terminal emulator. You'll know if it's working
