@@ -4,6 +4,7 @@ use config::Config;
 /// Merges in the default values for the program
 pub fn merge_defaults(c: &mut Config) {
     c.set_default("global.modules", vec!["directory", "git", "prompt"]).unwrap();
+    c.set_default("global.shell", "bash").unwrap();
     c.set_default("global.foreground", "bright_white").unwrap();
     c.set_default("global.background", "blue").unwrap();
     c.set_default("global.style", "default").unwrap();
@@ -67,13 +68,27 @@ pub fn format_module<'a>(c: &mut Config,
         output.unwrap()
     };
 
+    let shell = c.get_str("global.shell").unwrap_or_default();
+    let start_wrapper = match shell.as_ref() {
+        "zsh" => "%{",
+        _ => "\\[",
+    };
+    let end_wrapper = match shell.as_ref() {
+        "zsh" => "%}",
+        _ => "\\]",
+    };
+
     // Format the main content
-    let mut content = format!("\\[{}\\]{}{}{}\\[{}\\]",
+    let mut content = format!("{}{}{}{}{}{}{}{}{}",
+                              start_wrapper,
                               main_style.prefix(),
+                              end_wrapper,
                               padding_left,
                               output,
                               padding_right,
-                              main_style.suffix());
+                              start_wrapper,
+                              main_style.suffix(),
+                              end_wrapper);
 
     // Format the separator
     let main_style = main_style.on(fg).fg(bg);
@@ -83,18 +98,26 @@ pub fn format_module<'a>(c: &mut Config,
             .unwrap_or_else(|| c.get_str("global.background").unwrap_or_default());
         let next_bg = string_to_colour(next_bg);
 
-        content = format!("{}\\[{}\\]{}\\[{}\\]",
+        content = format!("{}{}{}{}{}{}{}{}",
                           content,
+                          start_wrapper,
                           main_style.on(next_bg).prefix(),
+                          end_wrapper,
                           separator,
-                          main_style.on(next_bg).suffix());
+                          start_wrapper,
+                          main_style.on(next_bg).suffix(),
+                          end_wrapper);
     } else {
         // This is the final module
-        content = format!("{}\\[{}\\]{}\\[{}\\]",
+        content = format!("{}{}{}{}{}{}{}{}",
                           content,
+                          start_wrapper,
                           bg.prefix(),
+                          end_wrapper,
                           separator,
-                          bg.suffix());
+                          start_wrapper,
+                          bg.suffix(),
+                          end_wrapper);
     }
 
     (Some(name), Some(ANSIString::from(content)))
