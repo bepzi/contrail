@@ -42,6 +42,13 @@ ps1() {
 PROMPT_COMMAND="ps1; $PROMPT_COMMAND"
 ```
 
+In your `~/.zshrc`
+
+```bash
+# ~/.zshrc
+PS1="$(contrail -e $? -z -c $HOME/path/to/config.toml) "
+```
+
 Restart/re-launch your terminal emulator. You'll know if it's working
 correctly.
 
@@ -198,8 +205,7 @@ do run your code through `rustfmt` first, please.
 
  - [x] Functions on Linux
    - [x] Works with Bash
-   - [ ] Works with ZSH
-   - [ ] Works with Fish
+   - [x] Works with ZSH
  - [ ] Functions on MacOS
 
 ## Other
