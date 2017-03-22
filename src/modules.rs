@@ -12,11 +12,13 @@ pub fn merge_defaults(c: &mut Config) {
     c.set_default("global.padding_left", " ").unwrap();
     c.set_default("global.padding_right", " ").unwrap();
 
+    c.set_default("modules.directory.background", "blue").unwrap();
     c.set_default("modules.directory.max_depth", 4).unwrap();
 
     c.set_default("modules.exit_code.bg_success", "green").unwrap();
     c.set_default("modules.exit_code.bg_error", "red").unwrap();
 
+    c.set_default("modules.directory.background", "cyan").unwrap();
     c.set_default("modules.git.symbol_insertion", "+").unwrap();
     c.set_default("modules.git.symbol_deletion", "-").unwrap();
     c.set_default("modules.git.symbol_push", "⇡").unwrap();
@@ -46,8 +48,12 @@ pub fn format_module<'a>(c: &mut Config,
         .unwrap_or_else(|| c.get_str("global.foreground").unwrap_or_default());
     let fg = string_to_colour(fg);
 
-    let bg = c.get_str(&format!("modules.{}.background", name))
-        .unwrap_or_else(|| c.get_str("global.background").unwrap_or_default());
+    let mut bg = c.get_str(&format!("modules.{}.background", name)).unwrap_or_default();
+    // Calling unwrap_or_default on something with no defined default
+    // is an empty string
+    if bg == "" {
+        bg = c.get_str("global.background").unwrap_or_default();
+    }
     let bg = string_to_colour(bg);
 
     let padding_left = c.get_str(&format!("modules.{}.padding_left", name))
