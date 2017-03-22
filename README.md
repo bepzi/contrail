@@ -1,20 +1,41 @@
 # contrail
 
-(Somewhat) fast and configurable status prompter, inspired
+Highly configurable status prompter, inspired
 by [powerline-shell](https://github.com/banga/powerline-shell)
 and [bash-powerline](https://github.com/riobard/bash-powerline).
 
-Customizations are made via a `config.toml` file.
+Customizations are made via a TOML file.
 
 **Disclaimer:** A large part of this program's functionality depends
 on the user's shell and terminal emulator. Each shell and terminal
 emulator supports different effects. Therefore, there may be some
 options that *do not work* with your setup!
 
-Works on Bash shells for Linux distros, *tentatively* also works on
-ZSH shells and MacOS. Fish shell not supported.
+Works on BASH and ZSH shells.
 
 Expect frequent breaking changes.
+
+## Screenshots
+
+All screenshots with their respective config files can be found in the
+`examples` folder.
+
+A basic setup:
+
+![Directory+Prompt](examples/basic0.png)
+
+![Directory+Git+Prompt](examples/basic1.png)
+
+Slightly more fancy, with powerline symbols:
+
+![ErrorCode+Directory+Prompt+Error](examples/fancy0.png)
+
+![ErrorCode+Directory+Git+Prompt](examples/fancy1.png)
+
+![ErrorCode+Directory+Git+Prompt](examples/fancy2.png)
+
+I had to retouch the latter few screenshots in GIMP to fix some
+antialiasing issues with my powerline-patched font.
 
 ## Installation
 
@@ -30,7 +51,10 @@ Clone the repository and install with `cargo`:
 git clone https://github.com/ben01189998819991197253/contrail ~/contrail
 cd ~/contrail
 cargo test && cargo install
+# If updating, you may need to do `cargo install --force`
 ```
+
+### BASH
 
 In your `~/.bashrc`:
 
@@ -42,6 +66,8 @@ ps1() {
 
 PROMPT_COMMAND="ps1; $PROMPT_COMMAND"
 ```
+
+### ZSH
 
 In your `~/.zshrc`
 
@@ -55,10 +81,13 @@ precmd() {
 Restart/re-launch your terminal emulator. You'll know if it's working
 correctly.
 
+Running `contrail -h` and `contrail -V` will print the help
+information and the version number, respectively.
+
 ## Configuration
 
-Configuration is done via a `config.toml` file. Contrail can be told
-about this file's location with the `-c` flag.
+Contrail can be told about the location of the config file with the
+`-c` flag.
 
 Each part of the prompt is split up into "modules". A typical prompt
 might have a "directory" module (shows the current working directory),
@@ -171,50 +200,19 @@ output = "Hello, world!"
 # By default the background color will be "blue"
 ```
 
-**Do note** that due to the way the `$PS1` variable is updated, it's
+**Do note** that due to the way the prompt variables are updated, it's
 possible to run arbitrary shell commands. So don't do anything stupid
 like setting `output = "$(rm -rf ~/*)"`.
-
-## Screenshots
-
-All screenshots with their respective config files can be found in the
-`examples` folder.
-
-A basic setup:
-
-![Directory+Prompt](examples/basic0.png)
-
-![Directory+Git+Prompt](examples/basic1.png)
-
-Slightly more fancy, with powerline symbols:
-
-![ErrorCode+Directory+Prompt+Error](examples/fancy0.png)
-
-![ErrorCode+Directory+Git+Prompt](examples/fancy1.png)
-
-![ErrorCode+Directory+Git+Prompt](examples/fancy2.png)
-
-I had to retouch the screenshots in GIMP to remove some antialiasing
-issues exacerbated by my powerline font not aligning correctly. I
-don't recommend using powerline symbols, although if it works for you
-go for it!
 
 ## Contributing
 
 ...is welcomed! Please submit any issues and pull requests, although
 do run your code through `rustfmt` first, please.
 
-## Compatibility
-
- - [x] Functions on Linux
-   - [x] Works with Bash
-   - [x] Works with ZSH
- - [ ] Functions on MacOS
-
 ## Other
 
 #### "Help, when I try to run contrail it just crashes!"
 
-Make *100% sure* your config file is syntactically correct
+Make **100% sure** your config file is syntactically correct
 TOML. Otherwise, file an issue or dig into the source code and try to
 fix it :)
