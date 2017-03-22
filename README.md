@@ -1,6 +1,6 @@
 # contrail
 
-Highly configurable status prompter, inspired
+Highly configurable shell prompter, inspired
 by [powerline-shell](https://github.com/banga/powerline-shell)
 and [bash-powerline](https://github.com/riobard/bash-powerline).
 
