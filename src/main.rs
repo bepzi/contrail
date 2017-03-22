@@ -10,9 +10,11 @@ use clap::{App, Arg};
 use config::{Config, File, FileFormat};
 use std::path::PathBuf;
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 fn main() {
     let matches = App::new("contrail")
-        .version("0.1.0")
+        .version(VERSION)
         .about("Fast and configurable shell prompter")
         .arg(Arg::with_name("exit_code")
                  .short("e")
@@ -26,7 +28,7 @@ fn main() {
                  .value_name("FILE")
                  .help("The configuration file")
                  .takes_value(true))
-        .arg(Arg::with_name("zsh").short("z").long("zsh").help("Enable ZSH mode"))
+        .arg(Arg::with_name("zsh").short("z").long("zsh").help("Enables ZSH mode"))
         .get_matches();
 
     let mut c = Config::new();
