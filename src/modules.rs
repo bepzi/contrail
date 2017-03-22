@@ -247,7 +247,11 @@ pub fn format_module_git<'a>(c: &mut Config,
     let mut output = String::new();
 
     if let Ok(repo) = Repository::discover(env::current_dir().unwrap()) {
-        let local = repo.head().unwrap();
+        let local = repo.head();
+        if local.is_err() {
+            return (None, None);
+        }
+        let local = local.unwrap();
 
         // Output current branch name
         output.push_str(local.shorthand().unwrap());
