@@ -4,6 +4,8 @@
 [global]
 # The modules that are enabled and will be displayed
 modules = ["directory", "git", "prompt"]
+# The type of shell contrail is being run on
+shell = "bash"
 # Color of the text
 foreground = "bright_white"
 # Color of the background
