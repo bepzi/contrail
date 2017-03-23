@@ -36,12 +36,9 @@ fn main() {
     // Merge in the defaults
     modules::merge_defaults(&mut c);
 
-    // Merge in the config file
+    // Merge in the config file if provided
     if let Some(f) = matches.value_of("config") {
         c.merge(File::new(f, FileFormat::Toml).required(false))
-            .expect("Unable to read the config file!");
-    } else if let Some(f) = find_config_file() {
-        c.merge(File::new(f.to_str().unwrap(), FileFormat::Toml).required(false))
             .expect("Unable to read the config file!");
     }
 
@@ -99,13 +96,4 @@ fn main() {
     }
 
     print!("{}", ANSIStrings(ansi_strings.as_slice()));
-}
-
-/// Looks through typical directories for a `contrail/config.toml`
-// TODO Implement and test this
-fn find_config_file() -> Option<PathBuf> {
-    // This is NOT the desired behavior, this is just for testing
-    let pb = PathBuf::from("config.toml");
-
-    if pb.exists() { Some(pb) } else { None }
 }
