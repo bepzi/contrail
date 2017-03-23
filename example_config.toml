@@ -22,8 +22,8 @@ padding_right = " "
 [modules.directory]
 # How many directory levels to show before truncating
 max_depth = 4
-#Whether or not we truncate in the middle of the directory path or at the beginning
-truncate_middle = true
+# Truncate from the middle of the directory path instead of the beginning
+truncate_middle = false
 
 # Displays the exit code of the last-executed command
 [modules.exit_code]
