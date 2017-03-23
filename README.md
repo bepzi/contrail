@@ -75,7 +75,7 @@ In your `~/.zshrc`
 ```bash
 # ~/.zshrc
 precmd() {
-         PS1="$(contrail -e $? -z -c $HOME/path/to/config.toml) "
+    PS1="$(contrail -e $? -z -c $HOME/path/to/config.toml) "
 }
 ```
 
