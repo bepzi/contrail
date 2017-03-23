@@ -14,6 +14,7 @@ pub fn merge_defaults(c: &mut Config) {
 
     c.set_default("modules.directory.background", "blue").unwrap();
     c.set_default("modules.directory.max_depth", 4).unwrap();
+    c.set_default("modules.directory.truncate_middle", true).unwrap();
 
     c.set_default("modules.exit_code.bg_success", "green").unwrap();
     c.set_default("modules.exit_code.bg_error", "red").unwrap();
@@ -223,17 +224,29 @@ pub fn format_module_directory<'a>(c: &mut Config,
 
     // Max number of directories we want to see
     let max_depth = c.get_int("modules.directory.max_depth").unwrap_or_default() as usize;
+    //whether we should truncate the path in the middle or at the beginning
+    let truncate_middle = c.get_bool("modules.directory.truncate_middle").unwrap_or_default();
 
     if depth > max_depth {
         let comp_iter = shortened_cwd.clone();
         let comp_iter = comp_iter.components();
 
         shortened_cwd = PathBuf::new();
-        for (i, component) in comp_iter.enumerate() {
-            if i < (max_depth / 2) || i >= (depth - (max_depth / 2)) {
-                shortened_cwd.push(component.as_os_str());
-            } else if i == (max_depth / 2) {
-                shortened_cwd.push("...");
+
+        if truncate_middle {
+            for (i, component) in comp_iter.enumerate() {
+                if i < (max_depth / 2) || i >= (depth - (max_depth / 2)) {
+                    shortened_cwd.push(component.as_os_str());
+                } else if i == (max_depth / 2) {
+                    shortened_cwd.push("...");
+                }
+            }
+        } else {
+            shortened_cwd.push("...");
+            for (i, component) in comp_iter.enumerate() {
+                if i >= (depth - (max_depth / 2)) {
+                    shortened_cwd.push(component.as_os_str());
+                }
             }
         }
     }
