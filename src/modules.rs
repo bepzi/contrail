@@ -245,7 +245,7 @@ pub fn format_module_directory<'a>(c: &mut Config,
         } else {
             shortened_cwd.push("...");
             for (i, component) in comp_iter.enumerate() {
-                if i >= (depth - (max_depth / 2)) {
+                if i >= depth - max_depth {
                     shortened_cwd.push(component.as_os_str());
                 }
             }
