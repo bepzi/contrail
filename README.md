@@ -7,9 +7,10 @@ and [bash-powerline](https://github.com/riobard/bash-powerline).
 Customizations are made via a TOML file.
 
 **Disclaimer:** A large part of this program's functionality depends
-on the user's shell and terminal emulator. Each shell and terminal
-emulator supports different effects. Therefore, there may be some
-options that *do not work* with your setup!
+on the user's shell, font, and terminal emulator. Each shell and
+terminal emulator supports different effects. Therefore, there may be
+some options that *do not work* with your setup! Weird/missing symbols
+can be fixed by changing the config or your terminal's font.
 
 Works on BASH and ZSH shells.
 
