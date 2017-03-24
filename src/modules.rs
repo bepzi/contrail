@@ -244,11 +244,20 @@ pub fn format_module_directory<'a>(c: &mut Config,
             }
         } else {
             shortened_cwd.push("...");
-            for (i, component) in comp_iter.enumerate() {
-                if i >= depth - max_depth {
-                    shortened_cwd.push(component.as_os_str());
-                }
-            }
+
+            //The number of elements we should skip in the iterator
+            let elems_to_skip = if depth > max_depth {
+                depth - max_depth
+            } else {
+                0
+            };
+
+            //push all unskipped elements to our new shortened path.
+            shortened_cwd.push(
+                comp_iter.skip(elems_to_skip)
+                         .map(|component| component.as_os_str())
+                         .collect::<PathBuf>()
+            );
         }
     }
 
