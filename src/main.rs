@@ -8,7 +8,6 @@ mod modules;
 use ansi_term::{ANSIString, ANSIStrings};
 use clap::{App, Arg};
 use config::{Config, File, FileFormat};
-use std::path::PathBuf;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
