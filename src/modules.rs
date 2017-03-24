@@ -50,8 +50,12 @@ pub fn format_module<'a>(c: &mut Config,
     let fg = string_to_colour(fg);
 
     let mut bg = c.get_str(&format!("modules.{}.background", name)).unwrap_or_default();
-    // Calling unwrap_or_default on something with no defined default
-    // is an empty string
+    // Calling unwrap_or_default for a string value with no defined
+    // default is an empty string. We do this so that we can fall back
+    // in the following order:
+    //
+    // module specific and user defined > module default > global and
+    // user defined > global default
     if bg == "" {
         bg = c.get_str("global.background").unwrap_or_default();
     }
@@ -84,6 +88,13 @@ pub fn format_module<'a>(c: &mut Config,
         "zsh" => "%}",
         _ => "\\]",
     };
+
+    // Each shell keeps track of the current line length. ANSI escape
+    // sequences get included in this line length, unless they are
+    // surrounded by \[ and \] (Bash) or %{ and %} (ZSH). This is why
+    // we format the content the way we do, it's so that the shell
+    // doesn't mistakenly think there's fewer characters remaining on
+    // the current line than there actually are.
 
     // Format the main content
     let mut content = format!("{}{}{}{}{}{}{}{}{}",
@@ -245,17 +256,17 @@ pub fn format_module_directory<'a>(c: &mut Config,
         } else {
             shortened_cwd.push("...");
 
-            //The number of elements we should skip in the iterator
+            // The number of elements we should skip in the iterator
             let elems_to_skip = if depth > max_depth {
                 depth - max_depth
             } else {
                 0
             };
 
-            //push all unskipped elements to our new shortened path.
+            // Push all unskipped elements to our new shortened path.
             shortened_cwd.push(comp_iter.skip(elems_to_skip)
-                .map(|component| component.as_os_str())
-                .collect::<PathBuf>());
+                                   .map(|component| component.as_os_str())
+                                   .collect::<PathBuf>());
         }
     }
 
