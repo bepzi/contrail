@@ -253,11 +253,9 @@ pub fn format_module_directory<'a>(c: &mut Config,
             };
 
             //push all unskipped elements to our new shortened path.
-            shortened_cwd.push(
-                comp_iter.skip(elems_to_skip)
-                         .map(|component| component.as_os_str())
-                         .collect::<PathBuf>()
-            );
+            shortened_cwd.push(comp_iter.skip(elems_to_skip)
+                .map(|component| component.as_os_str())
+                .collect::<PathBuf>());
         }
     }
 
