@@ -15,6 +15,7 @@ pub fn merge_defaults(c: &mut Config) {
     c.set_default("modules.directory.background", "blue").unwrap();
     c.set_default("modules.directory.max_depth", 4).unwrap();
     c.set_default("modules.directory.truncate_middle", false).unwrap();
+    c.set_default("modules.directory.show_followed_symlinks", false).unwrap();
 
     c.set_default("modules.exit_code.bg_success", "green").unwrap();
     c.set_default("modules.exit_code.bg_error", "red").unwrap();
@@ -221,7 +222,25 @@ pub fn format_module_directory<'a>(c: &mut Config,
     use std::path::PathBuf;
 
     let home = env::var("HOME").unwrap();
-    let cwd = env::current_dir().unwrap();
+    let cwd = if c.get_bool("modules.directory.show_followed_symlinks").unwrap_or_default() {
+        // Since we should follow system links, find the current path using the 'pwd -L' command
+        // The 'pwd -L' command only works if the shell updates the PWD environment variable.
+
+        // Match the PWD envrionment variable
+        match env::var("PWD") {
+            Ok(var_pwd) => {
+                // Create a new PathBuffer from the found Logical Working Directory
+                PathBuf::from(var_pwd)
+            },
+            Err(_) => {
+                // The 'pwd -L' must not be supported in this shell, return the absolute (physical) path instead.
+                env::current_dir().unwrap()
+            }
+        }
+    } else {
+        // Return the current directory without following system links (absoloute path)
+        env::current_dir().unwrap()
+    };
 
     // Convert "/home/user/directory" to "~/directory"
     let mut shortened_cwd: PathBuf;
