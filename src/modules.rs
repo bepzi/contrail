@@ -231,9 +231,10 @@ pub fn format_module_directory<'a>(c: &mut Config,
             Ok(var_pwd) => {
                 // Create a new PathBuffer from the found Logical Working Directory
                 PathBuf::from(var_pwd)
-            },
+            }
             Err(_) => {
-                // The 'pwd -L' must not be supported in this shell, return the absolute (physical) path instead.
+                // The 'pwd -L' must not be supported in this shell,
+                // return the absolute (physical) path instead.
                 env::current_dir().unwrap()
             }
         }
@@ -284,8 +285,8 @@ pub fn format_module_directory<'a>(c: &mut Config,
 
             // Push all unskipped elements to our new shortened path.
             shortened_cwd.push(comp_iter.skip(elems_to_skip)
-                                   .map(|component| component.as_os_str())
-                                   .collect::<PathBuf>());
+                .map(|component| component.as_os_str())
+                .collect::<PathBuf>());
         }
     }
 
