@@ -10,7 +10,7 @@ shell = "bash"
 foreground = "bright_white"
 # Color of the background
 background = "blue"
-# Font style
+# Font style: use multiple styles by seperating them with a comma i.e: "bold, italic"
 style = "default"
 # Goes after each module
 separator = ""

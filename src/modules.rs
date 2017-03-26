@@ -171,20 +171,27 @@ fn string_to_colour(s: String) -> Colour {
     }
 }
 
-fn string_to_style(s: String) -> Style {
-    let s = s.to_lowercase();
-    match s.as_ref() {
-        "default" | "" | "normal" => Style::new(),
-        "bold" => Style::new().bold(),
-        "dimmed" => Style::new().dimmed(),
-        "italic" => Style::new().italic(),
-        "underline" => Style::new().underline(),
-        "blink" => Style::new().blink(),
-        "reverse" => Style::new().reverse(),
-        "hidden" => Style::new().hidden(),
-        "strikethrough" => Style::new().strikethrough(),
-        _ => panic!("Unknown style property: {} in config file!", s),
+fn string_to_style(styles_string: String) -> Style {
+    let styles_string = styles_string.to_lowercase();
+
+    let mut string_style = Style::new();
+
+    for style in styles_string.split(',') {
+        string_style = match style.trim_left().as_ref() {
+            "default" | "" | "normal" => string_style,
+            "bold" => string_style.bold(),
+            "dimmed" => string_style.dimmed(),
+            "italic" => string_style.italic(),
+            "underline" => string_style.underline(),
+            "blink" => string_style.blink(),
+            "reverse" => string_style.reverse(),
+            "hidden" => string_style.hidden(),
+            "strikethrough" => string_style.strikethrough(),
+            _ => panic!("Unknown style property: {} in config file!", style),
+        }
     }
+
+    string_style
 }
 
 pub fn format_module_prompt<'a>(c: &mut Config,
