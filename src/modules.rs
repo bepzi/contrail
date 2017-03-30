@@ -242,12 +242,12 @@ pub fn format_module_directory<'a>(c: &mut Config,
             Err(_) => {
                 // The 'pwd -L' must not be supported in this shell,
                 // return the absolute (physical) path instead.
-                env::current_dir().unwrap()
+                env::current_dir().unwrap_or(PathBuf::new())
             }
         }
     } else {
         // Return the current directory without following system links (absolute path)
-        env::current_dir().unwrap()
+        env::current_dir().unwrap_or(PathBuf::new())
     };
 
     // Convert "/home/user/directory" to "~/directory"
@@ -255,7 +255,7 @@ pub fn format_module_directory<'a>(c: &mut Config,
     if let Ok(stripped_cwd) = cwd.strip_prefix(&home) {
         shortened_cwd = PathBuf::from("~").join(stripped_cwd);
     } else {
-        shortened_cwd = env::current_dir().unwrap();
+        shortened_cwd = env::current_dir().unwrap_or(PathBuf::new());
     }
 
     let depth = shortened_cwd.components().count();
@@ -311,7 +311,7 @@ pub fn format_module_git<'a>(c: &mut Config,
 
     let mut output = String::new();
 
-    if let Ok(repo) = Repository::discover(env::current_dir().unwrap()) {
+    if let Ok(repo) = Repository::discover(env::current_dir().unwrap_or(PathBuf::new())) {
         let local = repo.head();
         if local.is_err() {
             return (None, None);
