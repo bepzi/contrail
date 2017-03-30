@@ -308,6 +308,7 @@ pub fn format_module_git<'a>(c: &mut Config,
                              -> (Option<&'a str>, Option<ANSIString<'static>>) {
     use git2::{Branch, Repository};
     use std::env;
+    use std::path::PathBuf;
 
     let mut output = String::new();
 
