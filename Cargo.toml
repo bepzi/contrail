@@ -5,6 +5,6 @@ authors = ["B <ben01189998819991197253@users.noreply.github.com>"]
 
 [dependencies]
 ansi_term = "0.9"
-clap = "2.20"
+clap = "2.22"
 config = "0.4"
 git2 = "0.6"
