@@ -13,9 +13,9 @@ pub struct ModuleStyle {
 
 /// Attempts to convert a string into an `ansi_term::Color`.
 ///
-/// Returns a `FromStringError` if the provided string doesn't match
+/// Returns a `TryFromError` if the provided string doesn't match
 /// any of the colors defined in crate `ansi_term`.
-pub fn try_color_from_str(s: &str) -> Result<Color, FromStringError> {
+pub fn try_color_from_str(s: &str) -> Result<Color, TryFromError> {
     match s {
         "black" => Ok(Color::Black),
         "red" => Ok(Color::Red),
@@ -25,21 +25,21 @@ pub fn try_color_from_str(s: &str) -> Result<Color, FromStringError> {
         "purple" => Ok(Color::Purple),
         "cyan" => Ok(Color::Cyan),
         "white" => Ok(Color::White),
-        _ => Err(FromStringError),
+        _ => Err(TryFromError),
     }
 }
 
 #[derive(Debug, PartialEq)]
 /// Error type for when converting a string fails
-pub struct FromStringError;
+pub struct TryFromError;
 
-impl fmt::Display for FromStringError {
+impl fmt::Display for TryFromError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl Error for FromStringError {
+impl Error for TryFromError {
     fn description(&self) -> &str {
         "unrecognized input"
     }
@@ -52,6 +52,6 @@ mod tests {
     #[test]
     fn test_color_try_from_str() {
         assert_eq!(try_color_from_str("blue"), Ok(Color::Blue));
-        assert_eq!(try_color_from_str("teal"), Err(FromStringError));
+        assert_eq!(try_color_from_str("teal"), Err(TryFromError));
     }
 }
