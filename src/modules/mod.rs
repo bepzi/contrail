@@ -1,5 +1,7 @@
+use std::convert::From;
 use std::error::Error;
 use std::fmt;
+use std::num::ParseIntError;
 
 use ansi_term::{Color, Style};
 
@@ -42,9 +44,35 @@ pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
 /// Attempts to convert a string into an `ansi_term::Color::RGB`.
 ///
 /// Returns a `ConvertError::InvalidForm` if the provided string is
-/// not of the form "(u8, u8, u8)".
+/// not a sequence of 3 `u8`s, separated by commas.
+///
+/// # Examples
+/// ```
+/// # use modules::*
+/// assert_eq!(try_rgb_from_str("(14, 76, 1)"), Ok(Color::RGB(14, 76, 1)));
+/// assert_eq!(try_rgb_from_str("0, 100, 0"), Ok(Color::RGB(0, 100, 0)));
+/// assert_eq!(try_rgb_from_str("1000, b, c, -1"), Err(ConvertError::InvalidForm));
+/// ```
 pub fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
-    unimplemented!()
+    // Strip out non-integer characters
+    let cleaned: Vec<String> = s.split(',')
+        .map(|i| i.replace(|j| j == '(' || j == ')' || j == ' ', ""))
+        .collect();
+
+    // We want to immediately return an Error if a conversion fails
+    let mut ints: Vec<u8> = Vec::new();
+    for i in &cleaned {
+        ints.push(i.parse::<u8>()?);
+    }
+
+    // Note: somewhat-malformed input, like "()()(0, 0, 0)" can still
+    // get through, but we can still make "sense" of it so it's good
+    // to go.
+    if ints.len() != 3 {
+        Err(ConvertError::InvalidForm)
+    } else {
+        Ok(Color::RGB(ints[0], ints[1], ints[2]))
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -71,6 +99,14 @@ impl Error for ConvertError {
     }
 }
 
+// So that we can use try!() and ? to return early if we encounter a
+// ParseIntError
+impl From<ParseIntError> for ConvertError {
+    fn from(err: ParseIntError) -> ConvertError {
+        ConvertError::InvalidForm
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,5 +115,29 @@ mod tests {
     fn test_color_try_from_str() {
         assert_eq!(try_color_from_str("blue"), Ok(Color::Blue));
         assert_eq!(try_color_from_str("teal"), Err(ConvertError::NoSuchMatch));
+    }
+
+    #[test]
+    fn test_rgb_try_from_str() {
+        // Valid inputs
+        assert_eq!(try_rgb_from_str("(0, 0, 0)"), Ok(Color::RGB(0, 0, 0)));
+        assert_eq!(try_rgb_from_str("(255, 255, 255)"),
+                   Ok(Color::RGB(255, 255, 255)));
+
+        // Questionable inputs (should still work)
+        assert_eq!(try_rgb_from_str("(0, 0, 0))"), Ok(Color::RGB(0, 0, 0)));
+
+        // Improperly formed
+        assert_eq!(try_rgb_from_str("(0, 0, 0,)"),
+                   Err(ConvertError::InvalidForm));
+
+        // Too few inputs
+        assert_eq!(try_rgb_from_str("(0, 0)"), Err(ConvertError::InvalidForm));
+
+        // Inputs aren't u8's
+        assert_eq!(try_rgb_from_str("(1000, 0, 0)"),
+                   Err(ConvertError::InvalidForm));
+        assert_eq!(try_rgb_from_str("(0, 0, -1)"),
+                   Err(ConvertError::InvalidForm));
     }
 }
