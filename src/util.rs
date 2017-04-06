@@ -1,3 +1,4 @@
+use ansi_term::{Color, Style};
 use config::{Config, Value};
 
 /// Gets an array from a config file using a key, returning `None` if
