@@ -3,14 +3,76 @@ use std::error::Error;
 use std::fmt;
 use std::num::ParseIntError;
 
-use ansi_term::{Color, Style};
+use ansi_term::{ANSIString, Color, Style};
 
-/// Holds information about how to style a module
+use util::Shell;
+
+/// Representation of config options that all modules have
+#[derive(Clone)]
+pub struct ModuleOptions {
+    /// String to display to the left of the content
+    pub padding_left: String,
+    /// String to display to the right of the content
+    pub padding_right: String,
+    /// String to print out after the content and right padding
+    pub separator: String,
+    /// Background color, foreground color, etc.
+    pub style: ModuleStyle,
+}
+
+/// Representation of how to style a module
+#[derive(Clone)]
 pub struct ModuleStyle {
-    pub background: Color,
-    pub foreground: Color,
-    /// Attributes like bold, italicized, underlined, etc...
-    pub text_properties: Vec<Style>,
+    /// Color behind the text
+    pub background: Option<Color>,
+    /// Color of the text
+    pub foreground: Option<Color>,
+    /// Optional combination of attributes like bold, italicized, etc.
+    pub text_properties: Option<Style>,
+}
+
+/// Formats a string with the given `ModuleOptions` for a specific
+/// `Shell`.
+///
+/// # Parameters
+///
+/// - `s` - the contents of the module to be formatted
+/// - `options` - the background, foreground, padding, etc. to apply
+/// - `next_bg` - the background color, if any, of the next visible module
+/// - `shell` - the type of shell to format the string for
+pub fn format_for_module(s: &str,
+                         options: ModuleOptions,
+                         next_bg: Option<Color>,
+                         shell: Shell)
+                         -> ANSIString<'static> {
+
+    let style = style_from_modulestyle(&options.style);
+
+    // Each shell keeps track of the number of characters that make up
+    // the prompt. The ANSI escape-sequences that color the text will
+    // be accidentally included in this length *unless* we prefix and
+    // suffix them with these shell-specific escape-sequences. We
+    // don't want the shell to mistakenly think there's fewer
+    // characters remaining on the current line than there actually
+    // are.
+    let (len_esc_prefix, len_esc_suffix) = match shell {
+        Shell::Bash => ("\\[", "\\]"),
+        Shell::Zsh => ("%{", "%}"),
+    };
+
+    unimplemented!();
+}
+
+/// Converts a `ModuleStyle` into an `ansi_term::Style`.
+fn style_from_modulestyle(s: &ModuleStyle) -> Style {
+    let mut style = s.text_properties.unwrap_or_default();
+    if let Some(bg) = s.background {
+        style = style.on(bg);
+    }
+    if let Some(fg) = s.foreground {
+        style = style.fg(fg);
+    }
+    style
 }
 
 // We use methods of the form "try_*_from_*" because the user should
@@ -20,8 +82,15 @@ pub struct ModuleStyle {
 
 /// Attempts to convert a string into an `ansi_term::Color`.
 ///
-/// Returns a `ConvertError` if the provided string doesn't match
-/// any of the colors defined in crate `ansi_term`.
+/// Returns a `ConvertError::NoSuchMatch` if the provided string
+/// doesn't match any of the colors defined in crate `ansi_term`.
+///
+/// # Examples
+/// ```
+/// assert_eq!(try_color_from_str("black"), Ok(Color::Black));
+/// assert_eq!(try_color_from_str("green"), Ok(Color::Green));
+/// assert_eq!(try_color_from_str("turquoise"), Err(ConvertError::NoSuchMatch));
+/// ```
 pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
     match s {
         "black" => Ok(Color::Black),
@@ -36,11 +105,6 @@ pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
     }
 }
 
-// NOTE: We do not need a try_color_from_u8.
-// The implementation would just look like:
-// pub fn try_color_from_u8(i: u8) -> Color { Color::u8(i) }
-// It would always succeed due to Rust's type system.
-
 /// Attempts to convert a string into an `ansi_term::Color::RGB`.
 ///
 /// Returns a `ConvertError::InvalidForm` if the provided string is
@@ -48,7 +112,6 @@ pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
 ///
 /// # Examples
 /// ```
-/// # use modules::*
 /// assert_eq!(try_rgb_from_str("(14, 76, 1)"), Ok(Color::RGB(14, 76, 1)));
 /// assert_eq!(try_rgb_from_str("0, 100, 0"), Ok(Color::RGB(0, 100, 0)));
 /// assert_eq!(try_rgb_from_str("1000, b, c, -1"), Err(ConvertError::InvalidForm));
@@ -75,8 +138,13 @@ pub fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
     }
 }
 
+// NOTE: We do not need a try_color_from_u8 OR a try_rgb_from_vec.
+// The implementation would just look like:
+// pub fn try_color_from_u8(i: u8) -> Color { Color::u8(i) }
+// It would always succeed due to Rust's type system.
+
 #[derive(Debug, PartialEq)]
-/// Error type for when a conversion fails
+/// Error type for when a conversion due to parsing fails
 pub enum ConvertError {
     /// Input doesn't correspond to a valid result
     NoSuchMatch,
@@ -102,7 +170,7 @@ impl Error for ConvertError {
 // So that we can use try!() and ? to return early if we encounter a
 // ParseIntError
 impl From<ParseIntError> for ConvertError {
-    fn from(err: ParseIntError) -> ConvertError {
+    fn from(_: ParseIntError) -> ConvertError {
         ConvertError::InvalidForm
     }
 }
@@ -110,6 +178,58 @@ impl From<ParseIntError> for ConvertError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_style_from_modulestyle() {
+        const CONTENT: &'static str = "Hello";
+
+        struct Test {
+            style: ModuleStyle,
+            expected: String,
+        }
+
+        let tests = [// Normal text, no bg, custom fg
+                     Test {
+                         style: ModuleStyle {
+                             background: None,
+                             foreground: Some(Color::White),
+                             text_properties: None,
+                         },
+                         expected: format!("\x1B[37m{}\x1B[0m", CONTENT),
+                     },
+                     // Bold text, no fg, custom bg
+                     Test {
+                         style: ModuleStyle {
+                             background: Some(Color::Blue),
+                             foreground: None,
+                             text_properties: Some(Style::default().bold()),
+                         },
+                         expected: format!("\x1B[1;44m{}\x1B[0m", CONTENT),
+                     },
+                     // Underlined text, custom bg and fg
+                     Test {
+                         style: ModuleStyle {
+                             background: Some(Color::Blue),
+                             foreground: Some(Color::White),
+                             text_properties: Some(Style::default().underline()),
+                         },
+                         expected: format!("\x1B[4;44;37m{}\x1B[0m", CONTENT),
+                     },
+                     // Normal text, no bg nor fg
+                     Test {
+                         style: ModuleStyle {
+                             background: None,
+                             foreground: None,
+                             text_properties: None,
+                         },
+                         expected: format!("{}", CONTENT),
+                     }];
+
+        for test in &tests {
+            let result = format!("{}", style_from_modulestyle(&test.style).paint(CONTENT));
+            assert_eq!(result, test.expected);
+        }
+    }
 
     #[test]
     fn test_color_try_from_str() {
@@ -127,7 +247,7 @@ mod tests {
         // Questionable inputs (should still work)
         assert_eq!(try_rgb_from_str("(0, 0, 0))"), Ok(Color::RGB(0, 0, 0)));
 
-        // Improperly formed
+        // Improperly formed ("too many" inputs)
         assert_eq!(try_rgb_from_str("(0, 0, 0,)"),
                    Err(ConvertError::InvalidForm));
 
