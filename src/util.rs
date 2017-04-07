@@ -1,8 +1,17 @@
-use ansi_term::{Color, Style};
 use config::{Config, Value};
 
-/// Gets an array from a config file using a key, returning `None` if
-/// the key wasn't present or couldn't be coerced into a `Vec<Value>`.
+/// Representation of different types of shells
+pub enum Shell {
+    Bash,
+    Zsh,
+    // It's possible there are more kinds of shells that we can
+    // support (Fish is NOT one of them)
+}
+
+/// Gets an array from a config file using a key.
+///
+/// Returns `None` if the key wasn't present or couldn't be coerced
+/// into a `Vec<Value>`.
 ///
 /// `Config::get_array()` in version `0.4.1` has a bug where it
 /// consumes `self` instead of taking `self` by reference. This
