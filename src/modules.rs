@@ -15,7 +15,7 @@ pub fn merge_defaults(c: &mut Config) {
     c.set_default("modules.directory.background", "blue").unwrap();
     c.set_default("modules.directory.max_depth", 4).unwrap();
     c.set_default("modules.directory.truncate_middle", false).unwrap();
-    c.set_default("modules.directory.show_followed_symlinks", false).unwrap();
+    c.set_default("modules.directory.hide_followed_symlinks", true).unwrap();
 
     c.set_default("modules.exit_code.bg_success", "green").unwrap();
     c.set_default("modules.exit_code.bg_error", "red").unwrap();
@@ -229,7 +229,7 @@ pub fn format_module_directory<'a>(c: &mut Config,
     use std::path::PathBuf;
 
     let home = env::var("HOME").unwrap();
-    let cwd = if c.get_bool("modules.directory.show_followed_symlinks").unwrap_or_default() {
+    let cwd = if c.get_bool("modules.directory.hide_followed_symlinks").unwrap_or_default() {
         // Since we should follow system links, find the current path using the 'pwd -L' command
         // The 'pwd -L' command only works if the shell updates the PWD environment variable.
 
@@ -242,12 +242,12 @@ pub fn format_module_directory<'a>(c: &mut Config,
             Err(_) => {
                 // The 'pwd -L' must not be supported in this shell,
                 // return the absolute (physical) path instead.
-                env::current_dir().unwrap()
+                env::current_dir().unwrap_or(PathBuf::new())
             }
         }
     } else {
-        // Return the current directory without following system links (absoloute path)
-        env::current_dir().unwrap()
+        // Return the current directory without following system links (absolute path)
+        env::current_dir().unwrap_or(PathBuf::new())
     };
 
     // Convert "/home/user/directory" to "~/directory"
@@ -255,7 +255,7 @@ pub fn format_module_directory<'a>(c: &mut Config,
     if let Ok(stripped_cwd) = cwd.strip_prefix(&home) {
         shortened_cwd = PathBuf::from("~").join(stripped_cwd);
     } else {
-        shortened_cwd = env::current_dir().unwrap();
+        shortened_cwd = env::current_dir().unwrap_or(PathBuf::new());
     }
 
     let depth = shortened_cwd.components().count();
@@ -292,8 +292,8 @@ pub fn format_module_directory<'a>(c: &mut Config,
 
             // Push all unskipped elements to our new shortened path.
             shortened_cwd.push(comp_iter.skip(elems_to_skip)
-                .map(|component| component.as_os_str())
-                .collect::<PathBuf>());
+                                   .map(|component| component.as_os_str())
+                                   .collect::<PathBuf>());
         }
     }
 
@@ -308,10 +308,11 @@ pub fn format_module_git<'a>(c: &mut Config,
                              -> (Option<&'a str>, Option<ANSIString<'static>>) {
     use git2::{Branch, Repository};
     use std::env;
+    use std::path::PathBuf;
 
     let mut output = String::new();
 
-    if let Ok(repo) = Repository::discover(env::current_dir().unwrap()) {
+    if let Ok(repo) = Repository::discover(env::current_dir().unwrap_or(PathBuf::new())) {
         let local = repo.head();
         if local.is_err() {
             return (None, None);

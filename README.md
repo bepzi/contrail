@@ -173,9 +173,6 @@ style = "bold"    # Everything is bold!
 style = "italic"  # But my prompt is in italics!
 ```
 
-For now only one style can be active at a time (i.e, your text can't
-be both bold AND italicized).
-
 ### Custom modules
 
 There are three ways to get your own text into a module:

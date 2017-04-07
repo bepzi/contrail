@@ -1,0 +1,57 @@
+# example_config.toml
+# Contains every possible default option
+
+[global]
+# The modules that are enabled and will be displayed
+modules = ["directory", "git", "prompt"]
+# The type of shell contrail is being run on
+shell = "bash"
+# Color of the text
+foreground = "bright_white"
+# Color of the background
+background = "blue"
+# Font style: use multiple styles by seperating them with a comma i.e: "bold, italic"
+style = "default"
+# Goes after each module
+separator = ""
+# Padding before the text of each module
+padding_left = " "
+# Padding after the text of each module
+padding_right = " "
+
+[modules.directory]
+# How many directory levels to show before truncating
+max_depth = 4
+# Truncate from the middle of the directory path instead of the beginning
+truncate_middle = false
+
+# Displays the exit code of the last-executed command
+[modules.exit_code]
+# Background to show on success
+bg_success = "green"
+# Background to show on failure
+bg_error = "red"
+
+[modules.git]
+# Symbol to represent an insertion
+symbol_insertion = "+"
+# Symbol to represent a deletion
+symbol_deletion = "-"
+# Symbol to represent unpushed commits to upstream
+# symbol_push = "⇡"
+# Symbol to represent unpulled commits from upstream
+# symbol_push = "⇣"
+# Whether or not to show a symbol if repository has been modified
+show_changed = true
+# Whether or not to show the number of insertions/deletions
+show_diff_stats = false
+# Whether or not to show unpushed/unpulled commits to/from upstream
+show_unpushed = true
+
+[modules.prompt]
+# What to display
+# output = "$"
+# Background to show on success
+bg_success = "green"
+# Background to show on failure
+bg_error = "red"
