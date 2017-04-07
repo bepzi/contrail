@@ -7,7 +7,7 @@ mod modules;
 
 use ansi_term::{ANSIString, ANSIStrings};
 use clap::{App, Arg};
-use config::{Config, File, FileFormat};
+use config::{Config, File as ConfigFile, FileFormat};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -28,6 +28,9 @@ fn main() {
                  .help("The configuration file")
                  .takes_value(true))
         .arg(Arg::with_name("zsh").short("z").long("zsh").help("Enables ZSH mode"))
+        .arg(Arg::with_name("generate_config")
+                .short("g").long("generate_config")
+                .help("Generates a default configuration file at the config file path given by the -c flag."))
         .get_matches();
 
     let mut c = Config::new();
@@ -37,7 +40,10 @@ fn main() {
 
     // Merge in the config file if provided
     if let Some(f) = matches.value_of("config") {
-        c.merge(File::new(f, FileFormat::Toml).required(false))
+        if matches.is_present("generate_config") {
+            create_config_file(&f);
+        }
+        c.merge(ConfigFile::new(f, FileFormat::Toml).required(false))
             .expect("Unable to read the config file!");
     }
 
@@ -95,4 +101,79 @@ fn main() {
     }
 
     print!("{}", ANSIStrings(ansi_strings.as_slice()));
+}
+
+fn create_config_file(path: &str) {
+    use std::io::{stdin, stdout, Write, BufRead};
+    use std::fmt::{format};
+    use std::path::{Path, PathBuf};
+    // use std::env;
+    // let home = env::var("HOME").unwrap();
+    // The default path for contrail's config.toml file.
+    // let formatted_path = format!("{}/.config/contrail/config.toml", path);
+
+    let formatted_path = format!("{}", path);
+    let config_path = Path::new(formatted_path.as_str());
+    // Check if the file already exists
+    match config_path.metadata() {
+        Ok(_) => {
+            // Potentially ask user if they would like to overwrite the existing file with a default one here.
+            // File exists, do nothing.
+        }
+        Err(_) => {
+            // File doesn't already exist, create a default config file for the user
+            use std::fs::{create_dir_all, copy, File};
+
+            //get user confirmation
+            let stdout = stdout();
+            let mut handle = stdout.lock();
+            handle.write(format(
+                format_args!("\n{:?}\n", config_path.as_os_str())
+            ).as_bytes())
+            .ok();     //assume we are ok, because we will exit later on no matter what.
+            handle.write(b"Is this the correct path for the contrail configuration file? <y/n> ").ok();
+            handle.flush().ok();
+
+            let mut user_response = String::new();
+            let stdin = stdin();
+            let mut handle = stdin.lock();
+
+            handle.read_line(&mut user_response).ok();
+
+            match user_response.trim().to_lowercase().as_ref() {
+                "y" => {
+                    // println!("Creating a new default config file at ~/.config/contrail/config.toml");
+                    println!("Creating a config file at '{:?}'", config_path.as_os_str());
+                    let cargo_dir = env!("CARGO_MANIFEST_DIR");
+
+                    let mut example_config_path = PathBuf::from(cargo_dir);
+                    example_config_path.push("example_config.toml");
+
+
+                    // Create all directories required for the path,
+                    match create_dir_all(config_path.parent().unwrap()) {
+                        Ok(_) => (),
+                        Err(err) => println!("Error while creating a config directory: {}", err),
+                    }
+
+                    // Create the config_file,
+                    match File::create(config_path) {
+                        Ok(_) => (),
+                        Err(err) => println!("Error creating the config file: {}", err),
+                    }
+
+                    // Copy contents of the example_config to config
+                    match copy(example_config_path.as_os_str(), config_path.as_os_str()) {
+                        Ok(_) => (),
+                        Err(err) => println!("Error writing to the config file: {}", err),
+                    }
+                    println!("Finished writing config file!");
+
+                }
+                _ => ()
+            }
+
+
+        }
+    }
 }
