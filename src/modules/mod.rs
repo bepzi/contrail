@@ -9,13 +9,13 @@ use util::Shell;
 
 /// Representation of config options that all modules have
 #[derive(Clone)]
-pub struct ModuleOptions {
+pub struct ModuleOptions<'a> {
     /// String to display to the left of the content
-    pub padding_left: String,
+    pub padding_left: &'a str,
     /// String to display to the right of the content
-    pub padding_right: String,
+    pub padding_right: &'a str,
     /// String to print out after the content and right padding
-    pub separator: String,
+    pub separator: &'a str,
     /// Background color, foreground color, etc.
     pub style: ModuleStyle,
 }
@@ -27,7 +27,7 @@ pub struct ModuleStyle {
     pub background: Option<Color>,
     /// Color of the text
     pub foreground: Option<Color>,
-    /// Optional combination of attributes like bold, italicized, etc.
+    /// Combination of attributes like bold, italicized, etc.
     pub text_properties: Option<Style>,
 }
 
@@ -41,7 +41,7 @@ pub struct ModuleStyle {
 /// - `next_bg` - the background color, if any, of the next visible module
 /// - `shell` - the type of shell to format the string for
 pub fn format_for_module(s: &str,
-                         options: ModuleOptions,
+                         options: &ModuleOptions,
                          next_bg: Option<Color>,
                          shell: Shell)
                          -> ANSIString<'static> {
@@ -60,7 +60,39 @@ pub fn format_for_module(s: &str,
         Shell::Zsh => ("%{", "%}"),
     };
 
-    unimplemented!();
+    // Every time there is a color escape-sequence, it must be
+    // surrounded by the length escape-codes. We also include the
+    // padding before and after the content.
+    let content = format!("{}{}{}{}{}{}{}{}{}",
+                    len_esc_prefix,
+                    style.prefix(),
+                    len_esc_suffix,
+                    options.padding_left,
+                    s,
+                    options.padding_right,
+                    len_esc_prefix,
+                    style.suffix(),
+                    len_esc_suffix,
+    );
+
+    // We must format the separator differently depending on whether
+    // there exists a visible module after this one or not.
+    let separator_style = ModuleStyle {
+        foreground: options.style.background,
+        background: next_bg,
+        text_properties: options.style.text_properties,
+    };
+    let separator_style = style_from_modulestyle(&separator_style);
+    let separator = format!("{}{}{}{}{}{}{}",
+                            len_esc_prefix,
+                            separator_style.prefix(),
+                            len_esc_suffix,
+                            options.separator,
+                            len_esc_prefix,
+                            separator_style.suffix(),
+                            len_esc_suffix);
+
+    ANSIString::from(format!("{}{}", content, separator))
 }
 
 /// Converts a `ModuleStyle` into an `ansi_term::Style`.
@@ -92,7 +124,7 @@ fn style_from_modulestyle(s: &ModuleStyle) -> Style {
 /// assert_eq!(try_color_from_str("turquoise"), Err(ConvertError::NoSuchMatch));
 /// ```
 pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
-    match s {
+    match s.to_lowercase().as_ref() {
         "black" => Ok(Color::Black),
         "red" => Ok(Color::Red),
         "green" => Ok(Color::Green),
@@ -118,9 +150,8 @@ pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
 /// ```
 pub fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
     // Strip out non-integer characters
-    let cleaned: Vec<String> = s.split(',')
-        .map(|i| i.replace(|j| j == '(' || j == ')' || j == ' ', ""))
-        .collect();
+    let cleaned: Vec<String> =
+        s.split(',').map(|i| i.replace(|j| j == '(' || j == ')' || j == ' ', "")).collect();
 
     // We want to immediately return an Error if a conversion fails
     let mut ints: Vec<u8> = Vec::new();
@@ -178,6 +209,32 @@ impl From<ParseIntError> for ConvertError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_format_for_module() {
+        const CONTENT: &'static str = "Hello";
+        const PADDING: &'static str = " ";
+        const SEPARATOR: &'static str = ">";
+
+        let options = ModuleOptions {
+            padding_left: PADDING,
+            padding_right: PADDING,
+            separator: SEPARATOR,
+            style: ModuleStyle {
+                background: Some(Color::Blue),
+                foreground: Some(Color::White),
+                text_properties: Some(Style::default().bold()),
+            },
+        };
+
+        let formatted_string = format_for_module(CONTENT, &options, None, Shell::Bash);
+        assert_eq!(format!("\\[\x1B[1;44;37m\\]{}{}{}\\[\x1B[0m\\]\\[\x1B[1;34m\\]{}\\[\x1B[0m\\]",
+                           PADDING,
+                           CONTENT,
+                           PADDING,
+                           SEPARATOR),
+                   format!("{}", formatted_string))
+    }
 
     #[test]
     fn test_style_from_modulestyle() {
