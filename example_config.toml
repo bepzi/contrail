@@ -38,9 +38,9 @@ symbol_insertion = "+"
 # Symbol to represent a deletion
 symbol_deletion = "-"
 # Symbol to represent unpushed commits to upstream
-# symbol_push = "⇡"
+symbol_push = "⇡"
 # Symbol to represent unpulled commits from upstream
-# symbol_push = "⇣"
+symbol_push = "⇣"
 # Whether or not to show a symbol if repository has been modified
 show_changed = true
 # Whether or not to show the number of insertions/deletions
@@ -50,7 +50,7 @@ show_unpushed = true
 
 [modules.prompt]
 # What to display
-# output = "$"
+output = "$"
 # Background to show on success
 bg_success = "green"
 # Background to show on failure
