@@ -24,6 +24,9 @@ padding_right = " "
 max_depth = 4
 # Truncate from the middle of the directory path instead of the beginning
 truncate_middle = false
+# Whether to show the absolute path followed
+# or hide any symlinks traversed
+hide_followed_symlinks = true
 
 # Displays the exit code of the last-executed command
 [modules.exit_code]
