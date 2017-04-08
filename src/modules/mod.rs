@@ -118,6 +118,7 @@ fn style_from_modulestyle(s: &ModuleStyle) -> Style {
 /// doesn't match any of the colors defined in crate `ansi_term`.
 ///
 /// # Examples
+///
 /// ```
 /// assert_eq!(try_color_from_str("black"), Ok(Color::Black));
 /// assert_eq!(try_color_from_str("green"), Ok(Color::Green));
@@ -143,6 +144,7 @@ pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
 /// not a sequence of 3 `u8`s, separated by commas.
 ///
 /// # Examples
+///
 /// ```
 /// assert_eq!(try_rgb_from_str("(14, 76, 1)"), Ok(Color::RGB(14, 76, 1)));
 /// assert_eq!(try_rgb_from_str("0, 100, 0"), Ok(Color::RGB(0, 100, 0)));
@@ -167,6 +169,21 @@ pub fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
     } else {
         Ok(Color::RGB(ints[0], ints[1], ints[2]))
     }
+}
+
+/// Attempts to convert a string into an `ansi_term::Color::Fixed`.
+///
+/// Returns a `ConvertError::InvalidForm` if the provided string fails
+/// to coerce into a `u8`.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(try_fixed_from_str("63"), Ok(Color::Fixed(63)));
+/// assert_eq!(try_fixed_from_str("257"), Err(ConvertError::InvalidForm));
+/// ```
+pub fn try_fixed_from_str(s: &str) -> Result<Color, ConvertError> {
+    Ok(Color::Fixed(s.parse::<u8>()?))
 }
 
 // NOTE: We do not need a try_color_from_u8 OR a try_rgb_from_vec.
@@ -289,13 +306,27 @@ mod tests {
     }
 
     #[test]
-    fn test_color_try_from_str() {
+    fn test_try_color_from_str() {
+        // Corresponds to one of the colors defined in `ansi_term`
         assert_eq!(try_color_from_str("blue"), Ok(Color::Blue));
+
+        // Not part of the `ansi_term::Color` enum
         assert_eq!(try_color_from_str("teal"), Err(ConvertError::NoSuchMatch));
     }
 
     #[test]
-    fn test_rgb_try_from_str() {
+    fn test_try_fixed_from_str() {
+        // Valid inputs
+        assert_eq!(try_fixed_from_str("0"), Ok(Color::Fixed(0)));
+        assert_eq!(try_fixed_from_str("100"), Ok(Color::Fixed(100)));
+
+        // Inputs that can't be parsed to u8
+        assert_eq!(try_fixed_from_str("256"), Err(ConvertError::InvalidForm));
+        assert_eq!(try_fixed_from_str("-1"), Err(ConvertError::InvalidForm));
+    }
+
+    #[test]
+    fn test_try_rgb_from_str() {
         // Valid inputs
         assert_eq!(try_rgb_from_str("(0, 0, 0)"), Ok(Color::RGB(0, 0, 0)));
         assert_eq!(try_rgb_from_str("(255, 255, 255)"),
