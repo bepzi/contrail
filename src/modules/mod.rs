@@ -4,11 +4,9 @@ use std::fmt;
 use std::num::ParseIntError;
 
 use ansi_term::{ANSIString, Color, Style};
-
-use util::Shell;
+use clap::Shell;
 
 /// Representation of config options that all modules have
-#[derive(Clone)]
 pub struct ModuleOptions<'a> {
     /// String to display to the left of the content
     pub padding_left: &'a str,
@@ -58,6 +56,7 @@ pub fn format_for_module(s: &str,
     let (len_esc_prefix, len_esc_suffix) = match shell {
         Shell::Bash => ("\\[", "\\]"),
         Shell::Zsh => ("%{", "%}"),
+        _ => panic!("Your shell is not supported yet!"),
     };
 
     // Every time there is a color escape-sequence, it must be
@@ -226,6 +225,23 @@ impl From<ParseIntError> for ConvertError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[should_panic]
+    fn test_panic_on_unsupported_shell() {
+        let options = ModuleOptions {
+            padding_left: "",
+            padding_right: "",
+            separator: "",
+            style: ModuleStyle {
+                background: None,
+                foreground: None,
+                text_properties: None,
+            },
+        };
+
+        let _ = format_for_module("", &options, None, Shell::Fish);
+    }
 
     #[test]
     fn test_format_for_module() {
