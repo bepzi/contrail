@@ -1,13 +1,5 @@
 use config::{Config, Value};
 
-/// Representation of different types of shells
-pub enum Shell {
-    Bash,
-    Zsh,
-    // It's possible there are more kinds of shells that we can
-    // support (Fish is NOT one of them)
-}
-
 /// Gets an array from a config file using a key.
 ///
 /// Returns `None` if the key wasn't present or couldn't be coerced
