@@ -3,10 +3,10 @@ extern crate clap;
 extern crate config;
 extern crate git2;
 
-pub mod util;
+pub mod utils;
 pub mod modules;
 
-use util::*;
+use utils::*;
 use modules::*;
 
 fn main() {
