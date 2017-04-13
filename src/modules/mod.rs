@@ -1,12 +1,11 @@
-use std::convert::From;
-use std::error::Error;
-use std::fmt;
-use std::num::ParseIntError;
-
 use ansi_term::{ANSIString, Color, Style};
+use config::Config;
 use clap::Shell;
 
+use utils::ConvertError;
+
 /// Representation of config options that all modules have
+#[derive(Debug)]
 pub struct ModuleOptions<'a> {
     /// String to display to the left of the content
     pub padding_left: &'a str,
@@ -19,7 +18,7 @@ pub struct ModuleOptions<'a> {
 }
 
 /// Representation of how to style a module
-#[derive(Clone)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ModuleStyle {
     /// Color behind the text
     pub background: Option<Color>,
@@ -27,6 +26,41 @@ pub struct ModuleStyle {
     pub foreground: Option<Color>,
     /// Combination of attributes like bold, italicized, etc.
     pub text_properties: Option<Style>,
+}
+
+/// Gets a module's `Style` from a config file.
+///
+/// `key` refers to the name of the module, for example, "prompt". The
+/// foreground, background, and text properties will be fetched using
+/// the key "modules.<key>.style.<fg/bg/text>" as necessary.
+///
+/// Returns a `ConvertError` if any of the options in the config file
+/// fail to be parsed.
+pub fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ConvertError> {
+    // The layout of a config file looks something like this:
+    // [modules.<module_name>]
+    // separator = "something"
+    // # etc.. more options
+    //
+    // And to *style* a module, we expect something like this:
+    // [modules.<module_name>.style]
+    // foreground = "white"
+    // background = "(255, 255, 255)"
+    // text_properties = ["bold", "italicized"]
+
+    // If nothing is specified for foreground, background, or
+    // text_properties, we should assume `None` for the `Style` we
+    // will return
+    let bg = try_color_from_config(&format!("modules.{}.style.background", key), config)?;
+    let fg = try_color_from_config(&format!("modules.{}.style.foreground", key), config)?;
+    let text = try_text_props_from_config(&format!("modules.{}.style.text_properties", key),
+                                          config)?;
+
+    Ok(ModuleStyle {
+           background: bg,
+           foreground: fg,
+           text_properties: text,
+       })
 }
 
 /// Formats a string with the given `ModuleOptions` for a specific
@@ -111,6 +145,156 @@ fn style_from_modulestyle(s: &ModuleStyle) -> Style {
 // want, and we have to be able to parse what they say into a
 // meaningful type.
 
+/// Attempts to create an `ansi_term::Color` from the provided
+/// `Config`.
+///
+/// Returns a `ConvertError::InvalidForm` if none of the conversions
+/// succeed, or if an invalid type is provided. Will return `Ok(None)`
+/// if the provided `key` has no value within the `config`.
+///
+/// # Examples
+///
+/// ```
+/// let mut c = Config::new();
+/// c.set("foreground", "(255, 255, 255)").unwrap();
+/// c.set("background", "blue").unwrap();
+/// assert_eq!(try_color_from_config("foreground", &c),
+///     Ok(Some(Color::RGB(255, 255, 255))));
+/// assert_eq!(try_color_from_config("background", &c),
+///     Ok(Some(Color::Blue)));
+/// ```
+fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, ConvertError> {
+    use config::Value;
+
+    let result = if let Some(val) = config.get(key) {
+        match val {
+            Value::Integer(i) => {
+                // First, check whether it would be a valid u8
+                if i < 0 || i > 255 {
+                    Err(ConvertError::InvalidForm)
+                } else {
+                    Ok(Some(Color::Fixed(i as u8)))
+                }
+            }
+            Value::String(ref s) => {
+                // It *may* coerce into a `Color`, `Color::Fixed` or
+                // `Color::RGB`.
+                if let Ok(color) = try_color_from_str(&s) {
+                    Ok(Some(color))
+                } else if let Ok(color) = try_fixed_from_str(&s) {
+                    Ok(Some(color))
+                } else {
+                    // If this one operation doesn't succeed, then we
+                    // consider the whole function to have failed
+                    Ok(Some(try_rgb_from_str(&s)?))
+                }
+            }
+            _ => {
+                // Invalid type
+                Err(ConvertError::InvalidForm)
+            }
+        }
+    } else {
+        // The key didn't correspond to anything within the config
+        Ok(None)
+    };
+
+    result
+}
+
+/// Attempts to create a `Style` representing text style properties
+/// from a `Config`.
+///
+/// Returns a `ConvertError` if the input cannot be parsed into a
+/// `Style`.
+fn try_text_props_from_config(key: &str, config: &Config) -> Result<Option<Style>, ConvertError> {
+    use config::Value;
+
+    let result = if let Some(val) = config.get(key) {
+        // The only two valid types for this option are an array of
+        // strings or a single string
+        match val {
+            Value::String(ref s) => Ok(Some(try_text_prop_from_str(Some(s))?)),
+            Value::Array(arr) => {
+                let arr = arr.into_iter().map(|s| s.into_str().unwrap()).collect();
+                Ok(Some(try_text_props_from_vec(arr)?))
+            }
+            _ => Err(ConvertError::InvalidForm),
+        }
+    } else {
+        Ok(None)
+    };
+
+    result
+}
+
+/// Attempts to convert a string into an `ansi_term::Style`
+/// representing a single text property.
+///
+/// Returns a `ConvertError::NoSuchMatch` if the provided string
+/// doesn't match any of the text properties defined in crate
+/// `ansi_term`.
+///
+/// # Examples
+/// ```
+/// assert_eq!(try_text_prop_from_str(Some("bold")),
+///     Ok(Style::new().bold()));
+/// ```
+fn try_text_prop_from_str(s: Option<&str>) -> Result<Style, ConvertError> {
+    if let Some(s) = s {
+        match s.to_lowercase().as_ref() {
+            "bold" => Ok(Style::new().bold()),
+            "blink" => Ok(Style::new().blink()),
+            "dimmed" => Ok(Style::new().dimmed()),
+            "hidden" => Ok(Style::new().hidden()),
+            "italic" => Ok(Style::new().italic()),
+            "reverse" => Ok(Style::new().reverse()),
+            "strikethrough" => Ok(Style::new().strikethrough()),
+            "underline" => Ok(Style::new().underline()),
+            _ => Err(ConvertError::NoSuchMatch),
+        }
+    } else {
+        Ok(Style::new())
+    }
+}
+
+/// Attempts to convert a `Vec` of strings into a single
+/// `ansi_term::Style` representing how text should be styled.
+///
+/// Returns a `ConvertError::NoSuchMatch` if any of the strings in the
+/// `Vec` can't be parsed into a text style property.
+///
+/// # Examples
+/// ```
+/// let text_properties = vec!["bold", "underline"];
+/// let style = try_text_props_from_vec(text_properties).unwrap();
+/// assert_eq!(style, Style::new().bold().underline());
+/// ```
+fn try_text_props_from_vec<S: Into<String>>(props: Vec<S>) -> Result<Style, ConvertError> {
+    // This way, we can pass a Vec<String> OR a Vec<&str> (like we do
+    // in the tests)
+    let props: Vec<String> = props.into_iter().map(|i| i.into()).collect();
+
+    let mut style = Style::new();
+    for s in &props {
+        style = match s.to_lowercase().as_ref() {
+            "bold" => style.bold(),
+            "blink" => style.blink(),
+            "dimmed" => style.dimmed(),
+            "hidden" => style.hidden(),
+            "italic" => style.italic(),
+            "reverse" => style.reverse(),
+            "strikethrough" => style.strikethrough(),
+            "underline" => style.underline(),
+            _ => {
+                return Err(ConvertError::NoSuchMatch);
+            }
+        }
+    }
+
+    Ok(style)
+}
+
 /// Attempts to convert a string into an `ansi_term::Color`.
 ///
 /// Returns a `ConvertError::NoSuchMatch` if the provided string
@@ -123,7 +307,7 @@ fn style_from_modulestyle(s: &ModuleStyle) -> Style {
 /// assert_eq!(try_color_from_str("green"), Ok(Color::Green));
 /// assert_eq!(try_color_from_str("turquoise"), Err(ConvertError::NoSuchMatch));
 /// ```
-pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
+fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
     match s.to_lowercase().as_ref() {
         "black" => Ok(Color::Black),
         "red" => Ok(Color::Red),
@@ -149,10 +333,11 @@ pub fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
 /// assert_eq!(try_rgb_from_str("0, 100, 0"), Ok(Color::RGB(0, 100, 0)));
 /// assert_eq!(try_rgb_from_str("1000, b, c, -1"), Err(ConvertError::InvalidForm));
 /// ```
-pub fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
+fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
     // Strip out non-integer characters
-    let cleaned: Vec<String> =
-        s.split(',').map(|i| i.replace(|j| j == '(' || j == ')' || j == ' ', "")).collect();
+    let cleaned: Vec<String> = s.split(',')
+        .map(|i| i.replace(|j| j == '(' || j == ')' || j == ' ', ""))
+        .collect();
 
     // We want to immediately return an Error if a conversion fails
     let mut ints: Vec<u8> = Vec::new();
@@ -181,7 +366,7 @@ pub fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
 /// assert_eq!(try_fixed_from_str("63"), Ok(Color::Fixed(63)));
 /// assert_eq!(try_fixed_from_str("257"), Err(ConvertError::InvalidForm));
 /// ```
-pub fn try_fixed_from_str(s: &str) -> Result<Color, ConvertError> {
+fn try_fixed_from_str(s: &str) -> Result<Color, ConvertError> {
     Ok(Color::Fixed(s.parse::<u8>()?))
 }
 
@@ -190,41 +375,146 @@ pub fn try_fixed_from_str(s: &str) -> Result<Color, ConvertError> {
 // pub fn try_color_from_u8(i: u8) -> Color { Color::u8(i) }
 // It would always succeed due to Rust's type system.
 
-#[derive(Debug, PartialEq)]
-/// Error type for when a conversion due to parsing fails
-pub enum ConvertError {
-    /// Input doesn't correspond to a valid result
-    NoSuchMatch,
-    /// Input is malformed and cannot be parsed
-    InvalidForm,
-}
-
-impl fmt::Display for ConvertError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl Error for ConvertError {
-    fn description(&self) -> &str {
-        match *self {
-            ConvertError::NoSuchMatch => "no match was found for the provided input",
-            ConvertError::InvalidForm => "provided input was malformed and could not be parsed",
-        }
-    }
-}
-
-// So that we can use try!() and ? to return early if we encounter a
-// ParseIntError
-impl From<ParseIntError> for ConvertError {
-    fn from(_: ParseIntError) -> ConvertError {
-        ConvertError::InvalidForm
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_read_style_from_config() {
+        let mut c = Config::new();
+
+        // No options set
+        assert_eq!(read_style("prompt", &c), Ok(ModuleStyle::default()));
+
+        // Only a background set
+        c.set("modules.prompt.style.background", "blue").unwrap();
+        let style = ModuleStyle {
+            foreground: None,
+            background: Some(Color::Blue),
+            text_properties: None,
+        };
+        assert_eq!(read_style("prompt", &c), Ok(style));
+
+        // All properties set
+        c.set("modules.prompt.style.foreground", "white")
+            .unwrap();
+        c.set("modules.prompt.style.background", "50").unwrap();
+        c.set("modules.prompt.style.text_properties",
+                 vec!["bold", "italic"])
+            .unwrap();
+        let style = ModuleStyle {
+            foreground: Some(Color::White),
+            background: Some(Color::Fixed(50)),
+            text_properties: Some(Style::new().bold().italic()),
+        };
+        assert_eq!(read_style("prompt", &c), Ok(style));
+
+        // Erroneous property set (malformed Color::RGB, too many inputs)
+        c.set("modules.prompt.style.foreground", "(0, 0, 0, 0)")
+            .unwrap();
+        assert_eq!(read_style("prompt", &c), Err(ConvertError::InvalidForm));
+    }
+
+    #[test]
+    fn test_try_text_props_from_config() {
+        let mut c = Config::new();
+
+        // No text properties set
+        assert_eq!(try_text_props_from_config("text_properties", &c), Ok(None));
+
+        // Text properties are a single string
+        c.set("text_properties", "bold").unwrap();
+        assert_eq!(try_text_props_from_config("text_properties", &c),
+                   Ok(Some(Style::new().bold())));
+
+        // Text properties are a vec of strings
+        c.set("text_properties", vec!["bold", "underline", "italic"])
+            .unwrap();
+        assert_eq!(try_text_props_from_config("text_properties", &c),
+                   Ok(Some(Style::new().bold().underline().italic())));
+
+        // Text properties are an invalid type
+        c.set("text_properties", true).unwrap();
+        assert_eq!(try_text_props_from_config("text_properties", &c),
+                   Err(ConvertError::InvalidForm));
+    }
+
+    #[test]
+    fn test_try_text_props_from_vec() {
+        // A single valid text property
+        let props = vec!["bold"];
+        assert_eq!(try_text_props_from_vec(props), Ok(Style::new().bold()));
+
+        // Multiple valid text properties
+        let props = vec!["bold", "hidden", "underline"];
+        assert_eq!(try_text_props_from_vec(props),
+                   Ok(Style::new().bold().hidden().underline()));
+
+        // No text properties
+        let props: Vec<&str> = Vec::new();
+        assert_eq!(try_text_props_from_vec(props), Ok(Style::new()));
+
+        // Invalid text property
+        let props = vec!["hidden", "invalid"];
+        assert_eq!(try_text_props_from_vec(props),
+                   Err(ConvertError::NoSuchMatch));
+    }
+
+    #[test]
+    fn test_try_text_prop_from_str() {
+        // Valid text property
+        assert_eq!(try_text_prop_from_str(Some("bold")),
+                   Ok(Style::new().bold()));
+
+        // No string passed
+        assert_eq!(try_text_prop_from_str(None), Ok(Style::new()));
+
+        // Invalid text property
+        assert_eq!(try_text_prop_from_str(Some("invalid")),
+                   Err(ConvertError::NoSuchMatch));
+    }
+
+    #[test]
+    fn test_try_color_from_config() {
+        let mut c = Config::new();
+
+        // No fg or bg set
+        assert_eq!(try_color_from_config("foreground", &c), Ok(None));
+        assert_eq!(try_color_from_config("background", &c), Ok(None));
+
+        // Only a fg set
+        c.set("foreground", "white").unwrap();
+        assert_eq!(try_color_from_config("foreground", &c),
+                   Ok(Some(Color::White)));
+        assert_eq!(try_color_from_config("background", &c), Ok(None));
+
+        // Both fg and bg set
+        c.set("foreground", "green").unwrap();
+        c.set("background", "black").unwrap();
+        assert_eq!(try_color_from_config("foreground", &c),
+                   Ok(Some(Color::Green)));
+        assert_eq!(try_color_from_config("background", &c),
+                   Ok(Some(Color::Black)));
+
+        // fg set to a valid u8
+        c.set("foreground", 10).unwrap();
+        assert_eq!(try_color_from_config("foreground", &c),
+                   Ok(Some(Color::Fixed(10))));
+
+        // fg set to an invalid u8
+        c.set("foreground", -1).unwrap();
+        assert_eq!(try_color_from_config("foreground", &c),
+                   Err(ConvertError::InvalidForm));
+
+        // bg set to an invalid type
+        c.set("background", true).unwrap();
+        assert_eq!(try_color_from_config("background", &c),
+                   Err(ConvertError::InvalidForm));
+
+        c.set("background", vec!["a", "b", "c"]).unwrap();
+        assert_eq!(try_color_from_config("background", &c),
+                   Err(ConvertError::InvalidForm));
+    }
 
     #[test]
     #[should_panic]

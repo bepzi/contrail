@@ -1,4 +1,42 @@
+use std::convert::From;
+use std::error::Error;
+use std::fmt;
+use std::num::ParseIntError;
+
 use config::{Config, Value};
+
+#[derive(Debug, PartialEq)]
+/// Error type for when parsing a config file to another type fails
+pub enum ConvertError {
+    /// Input doesn't correspond to a valid result
+    NoSuchMatch,
+    /// Input is malformed and cannot be parsed
+    InvalidForm,
+}
+
+impl fmt::Display for ConvertError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for ConvertError {
+    fn description(&self) -> &str {
+        match *self {
+            ConvertError::NoSuchMatch => "no match was found for the provided input",
+            ConvertError::InvalidForm => "provided input was malformed and could not be parsed",
+        }
+    }
+}
+
+// So that we can use try!() and ? to return early if we encounter a
+// ParseIntError
+impl From<ParseIntError> for ConvertError {
+    fn from(_: ParseIntError) -> ConvertError {
+        ConvertError::InvalidForm
+    }
+}
+
 
 /// Gets an array from a config file using a key.
 ///
