@@ -1,3 +1,5 @@
+use std::default::Default;
+
 use ansi_term::{ANSIString, Color, Style};
 use config::Config;
 use clap::Shell;
@@ -5,20 +7,33 @@ use clap::Shell;
 use utils::ConvertError;
 
 /// Representation of config options that all modules have
-#[derive(Debug)]
-pub struct ModuleOptions<'a> {
+#[derive(Debug, PartialEq)]
+pub struct ModuleOptions {
     /// String to display to the left of the content
-    pub padding_left: &'a str,
+    pub padding_left: String,
     /// String to display to the right of the content
-    pub padding_right: &'a str,
+    pub padding_right: String,
     /// String to print out after the content and right padding
-    pub separator: &'a str,
+    pub separator: String,
     /// Background color, foreground color, etc.
     pub style: ModuleStyle,
 }
 
+impl Default for ModuleOptions {
+    fn default() -> ModuleOptions {
+        // These defaults should be kept in sync with the
+        // read_options() method (not very hard to do)
+        ModuleOptions {
+            padding_left: String::from(" "),
+            padding_right: String::from(" "),
+            separator: String::from(""),
+            style: ModuleStyle::default(),
+        }
+    }
+}
+
 /// Representation of how to style a module
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct ModuleStyle {
     /// Color behind the text
     pub background: Option<Color>,
@@ -28,7 +43,66 @@ pub struct ModuleStyle {
     pub text_properties: Option<Style>,
 }
 
-/// Gets a module's `Style` from a config file.
+// NOTE: This is the only config-parsing method from this file that's
+// meant to be called explicitly from other parts of the code. The
+// other methods are helper methods.
+/// Gets a module's options from a config file.
+///
+/// `key` refers to the name of the module, for example, "prompt". The
+/// padding, separator, and style will be fetched using
+/// "modules.<key>.<padding/etc>".
+///
+/// Returns a `ConvertError` if any of the options in the config file
+/// fail to be parsed.
+pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, ConvertError> {
+    use config::Value;
+
+    // TODO: Extract this into another function? In the interests of
+    // time, I think it is acceptable to repeat myself here
+    let padding_left = if let Some(val) = config.get(&format!("modules.{}.padding_left", key)) {
+        match val {
+            Value::String(s) => s,
+            _ => {
+                return Err(ConvertError::InvalidForm);
+            }
+        }
+    } else {
+        String::from(" ")
+    };
+
+    let padding_right = if let Some(val) = config.get(&format!("modules.{}.padding_right", key)) {
+        match val {
+            Value::String(s) => s,
+            _ => {
+                return Err(ConvertError::InvalidForm);
+            }
+        }
+    } else {
+        String::from(" ")
+    };
+
+    let separator = if let Some(val) = config.get(&format!("modules.{}.separator", key)) {
+        match val {
+            Value::String(s) => s,
+            _ => {
+                return Err(ConvertError::InvalidForm);
+            }
+        }
+    } else {
+        String::from("")
+    };
+
+    let style = read_style(key, &config)?;
+
+    Ok(ModuleOptions {
+           padding_left: padding_left,
+           padding_right: padding_right,
+           separator: separator,
+           style: style,
+       })
+}
+
+/// Gets a module's style from a config file.
 ///
 /// `key` refers to the name of the module, for example, "prompt". The
 /// foreground, background, and text properties will be fetched using
@@ -36,7 +110,7 @@ pub struct ModuleStyle {
 ///
 /// Returns a `ConvertError` if any of the options in the config file
 /// fail to be parsed.
-pub fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ConvertError> {
+fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ConvertError> {
     // The layout of a config file looks something like this:
     // [modules.<module_name>]
     // separator = "something"
@@ -72,12 +146,13 @@ pub fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ConvertErro
 /// - `options` - the background, foreground, padding, etc. to apply
 /// - `next_bg` - the background color, if any, of the next visible module
 /// - `shell` - the type of shell to format the string for
-pub fn format_for_module(s: &str,
-                         options: &ModuleOptions,
-                         next_bg: Option<Color>,
-                         shell: Shell)
-                         -> ANSIString<'static> {
-
+pub fn format_for_module<S: Into<String>>(s: S,
+                                          options: &ModuleOptions,
+                                          next_bg: Option<Color>,
+                                          shell: Shell)
+                                          -> ANSIString<'static> {
+    // Allow usage of String or &str
+    let s = s.into();
     let style = style_from_modulestyle(&options.style);
 
     // Each shell keeps track of the number of characters that make up
@@ -380,6 +455,50 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_read_options_from_config() {
+        let mut c = Config::new();
+
+        // No options set
+        assert_eq!(read_options("prompt", &c), Ok(ModuleOptions::default()));
+
+        // Only a separator set
+        let options = ModuleOptions {
+            padding_left: String::from(" "),
+            padding_right: String::from(" "),
+            separator: String::from(">"),
+            style: ModuleStyle::default(),
+        };
+        c.set("modules.prompt.separator", ">").unwrap();
+        assert_eq!(read_options("prompt", &c), Ok(options));
+
+        // All options set
+        let options = ModuleOptions {
+            padding_left: String::from("|"),
+            padding_right: String::from("/"),
+            separator: String::from(" "),
+            style: ModuleStyle {
+                foreground: Some(Color::White),
+                background: Some(Color::RGB(6, 47, 200)),
+                text_properties: Some(Style::new().bold()),
+            },
+        };
+        c.set("modules.prompt.padding_left", "|").unwrap();
+        c.set("modules.prompt.padding_right", "/").unwrap();
+        c.set("modules.prompt.separator", " ").unwrap();
+        c.set("modules.prompt.style.foreground", "white")
+            .unwrap();
+        c.set("modules.prompt.style.background", "(6, 47, 200)")
+            .unwrap();
+        c.set("modules.prompt.style.text_properties", "bold")
+            .unwrap();
+        assert_eq!(read_options("prompt", &c), Ok(options));
+
+        // Error in one of the options
+        c.set("modules.prompt.padding_left", true).unwrap();
+        assert_eq!(read_options("prompt", &c), Err(ConvertError::InvalidForm));
+    }
+
+    #[test]
     fn test_read_style_from_config() {
         let mut c = Config::new();
 
@@ -520,9 +639,9 @@ mod tests {
     #[should_panic]
     fn test_panic_on_unsupported_shell() {
         let options = ModuleOptions {
-            padding_left: "",
-            padding_right: "",
-            separator: "",
+            padding_left: String::new(),
+            padding_right: String::new(),
+            separator: String::new(),
             style: ModuleStyle {
                 background: None,
                 foreground: None,
@@ -540,9 +659,9 @@ mod tests {
         const SEPARATOR: &'static str = ">";
 
         let options = ModuleOptions {
-            padding_left: PADDING,
-            padding_right: PADDING,
-            separator: SEPARATOR,
+            padding_left: PADDING.to_string(),
+            padding_right: PADDING.to_string(),
+            separator: SEPARATOR.to_string(),
             style: ModuleStyle {
                 background: Some(Color::Blue),
                 foreground: Some(Color::White),
@@ -550,7 +669,7 @@ mod tests {
             },
         };
 
-        let formatted_string = format_for_module(CONTENT, &options, None, Shell::Bash);
+        let formatted_string = format_for_module(CONTENT.to_string(), &options, None, Shell::Bash);
         assert_eq!(format!("\\[\x1B[1;44;37m\\]{}{}{}\\[\x1B[0m\\]\\[\x1B[1;34m\\]{}\\[\x1B[0m\\]",
                            PADDING,
                            CONTENT,
