@@ -6,9 +6,17 @@ use clap::Shell;
 
 use utils::ConvertError;
 
+mod prompt;
+mod generic;
+
+pub use self::prompt::*;
+pub use self::generic::*;
+
 /// Representation of config options that all modules have
 #[derive(Debug, PartialEq)]
 pub struct ModuleOptions {
+    /// String that, if present, overrides the output of the module
+    pub output: Option<String>,
     /// String to display to the left of the content
     pub padding_left: String,
     /// String to display to the right of the content
@@ -24,6 +32,7 @@ impl Default for ModuleOptions {
         // These defaults should be kept in sync with the
         // read_options() method (not very hard to do)
         ModuleOptions {
+            output: None,
             padding_left: String::from(" "),
             padding_right: String::from(" "),
             separator: String::from(""),
@@ -92,9 +101,21 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Convert
         String::from("")
     };
 
-    let style = read_style(key, &config)?;
+    let overridden_output = if let Some(val) = config.get(&format!("modules.{}.output", key)) {
+        match val {
+            Value::String(s) => Some(s),
+            _ => {
+                return Err(ConvertError::InvalidForm);
+            }
+        }
+    } else {
+        None
+    };
+
+    let style = read_style(&format!("modules.{}.style", key), &config)?;
 
     Ok(ModuleOptions {
+           output: overridden_output,
            padding_left: padding_left,
            padding_right: padding_right,
            separator: separator,
@@ -104,13 +125,12 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Convert
 
 /// Gets a module's style from a config file.
 ///
-/// `key` refers to the name of the module, for example, "prompt". The
-/// foreground, background, and text properties will be fetched using
-/// the key "modules.<key>.style.<fg/bg/text>" as necessary.
+/// `key` refers to the style of the module, for example,
+/// "modules.prompt.style_success".
 ///
 /// Returns a `ConvertError` if any of the options in the config file
 /// fail to be parsed.
-fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ConvertError> {
+pub fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ConvertError> {
     // The layout of a config file looks something like this:
     // [modules.<module_name>]
     // separator = "something"
@@ -125,10 +145,9 @@ fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ConvertError> {
     // If nothing is specified for foreground, background, or
     // text_properties, we should assume `None` for the `Style` we
     // will return
-    let bg = try_color_from_config(&format!("modules.{}.style.background", key), config)?;
-    let fg = try_color_from_config(&format!("modules.{}.style.foreground", key), config)?;
-    let text = try_text_props_from_config(&format!("modules.{}.style.text_properties", key),
-                                          config)?;
+    let bg = try_color_from_config(&format!("{}.background", key), config)?;
+    let fg = try_color_from_config(&format!("{}.foreground", key), config)?;
+    let text = try_text_props_from_config(&format!("{}.text_properties", key), config)?;
 
     Ok(ModuleStyle {
            background: bg,
@@ -151,8 +170,13 @@ pub fn format_for_module<S: Into<String>>(s: S,
                                           next_bg: Option<Color>,
                                           shell: Shell)
                                           -> ANSIString<'static> {
-    // Allow usage of String or &str
-    let s = s.into();
+    let s = if let Some(ref output) = options.output {
+        // Override output if present
+        output.to_owned()
+    } else {
+        // Allow usage of String or &str
+        s.into()
+    };
     let style = style_from_modulestyle(&options.style);
 
     // Each shell keeps track of the number of characters that make up
@@ -463,6 +487,7 @@ mod tests {
 
         // Only a separator set
         let options = ModuleOptions {
+            output: None,
             padding_left: String::from(" "),
             padding_right: String::from(" "),
             separator: String::from(">"),
@@ -473,6 +498,7 @@ mod tests {
 
         // All options set
         let options = ModuleOptions {
+            output: Some(String::from("Hello")),
             padding_left: String::from("|"),
             padding_right: String::from("/"),
             separator: String::from(" "),
@@ -482,6 +508,7 @@ mod tests {
                 text_properties: Some(Style::new().bold()),
             },
         };
+        c.set("modules.prompt.output", "Hello").unwrap();
         c.set("modules.prompt.padding_left", "|").unwrap();
         c.set("modules.prompt.padding_right", "/").unwrap();
         c.set("modules.prompt.separator", " ").unwrap();
@@ -512,7 +539,7 @@ mod tests {
             background: Some(Color::Blue),
             text_properties: None,
         };
-        assert_eq!(read_style("prompt", &c), Ok(style));
+        assert_eq!(read_style("modules.prompt.style", &c), Ok(style));
 
         // All properties set
         c.set("modules.prompt.style.foreground", "white")
@@ -526,12 +553,13 @@ mod tests {
             background: Some(Color::Fixed(50)),
             text_properties: Some(Style::new().bold().italic()),
         };
-        assert_eq!(read_style("prompt", &c), Ok(style));
+        assert_eq!(read_style("modules.prompt.style", &c), Ok(style));
 
         // Erroneous property set (malformed Color::RGB, too many inputs)
         c.set("modules.prompt.style.foreground", "(0, 0, 0, 0)")
             .unwrap();
-        assert_eq!(read_style("prompt", &c), Err(ConvertError::InvalidForm));
+        assert_eq!(read_style("modules.prompt.style", &c),
+                   Err(ConvertError::InvalidForm));
     }
 
     #[test]
@@ -639,6 +667,7 @@ mod tests {
     #[should_panic]
     fn test_panic_on_unsupported_shell() {
         let options = ModuleOptions {
+            output: None,
             padding_left: String::new(),
             padding_right: String::new(),
             separator: String::new(),
@@ -658,7 +687,8 @@ mod tests {
         const PADDING: &'static str = " ";
         const SEPARATOR: &'static str = ">";
 
-        let options = ModuleOptions {
+        let mut options = ModuleOptions {
+            output: None,
             padding_left: PADDING.to_string(),
             padding_right: PADDING.to_string(),
             separator: SEPARATOR.to_string(),
@@ -675,7 +705,17 @@ mod tests {
                            CONTENT,
                            PADDING,
                            SEPARATOR),
-                   format!("{}", formatted_string))
+                   format!("{}", formatted_string));
+
+        // Override the output, use ZSH
+        options.output = Some(String::from("modified"));
+        let formatted_string = format_for_module(CONTENT.to_string(), &options, None, Shell::Bash);
+        assert_eq!(format!("\\[\x1B[1;44;37m\\]{}{}{}\\[\x1B[0m\\]\\[\x1B[1;34m\\]{}\\[\x1B[0m\\]",
+                           PADDING,
+                           "modified",
+                           PADDING,
+                           SEPARATOR),
+                   format!("{}", formatted_string));
     }
 
     #[test]
