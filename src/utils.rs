@@ -3,7 +3,15 @@ use std::error::Error;
 use std::fmt;
 use std::num::ParseIntError;
 
+use ansi_term::{ANSIString, Color};
 use config::{Config, Value};
+
+/// Type that will be returned when a module is formatted
+#[derive(Debug, Default)]
+pub struct FormatResult {
+    pub output: Option<ANSIString<'static>>,
+    pub next_bg: Option<Color>,
+}
 
 #[derive(Debug, PartialEq)]
 /// Error type for when parsing a config file to another type fails
