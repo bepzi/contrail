@@ -65,7 +65,10 @@ fn main() {
 
     let module_names: Vec<String> = if let Some(arr) = ref_get_array("global.modules", &c) {
         // into_str() always succeeds, so it's safe to call unwrap()
-        arr.into_iter().map(|m| m.into_str().unwrap()).rev().collect()
+        arr.into_iter()
+            .map(|m| m.into_str().unwrap())
+            .rev()
+            .collect()
     } else {
         vec![String::from("cwd"),
              String::from("git"),
@@ -78,6 +81,7 @@ fn main() {
     for name in &module_names {
         let result = match name.as_ref() {
             "prompt" => format_prompt(&c, exit_code, next_bg, shell).expect(CONFIG_ERR),
+            "cwd" => format_cwd(&c, next_bg, shell).expect(CONFIG_ERR),
             s => format_generic(s, &c, next_bg, shell).expect(CONFIG_ERR),
         };
 
