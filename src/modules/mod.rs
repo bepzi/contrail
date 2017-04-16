@@ -6,11 +6,13 @@ use clap::Shell;
 
 use utils::ConvertError;
 
-mod prompt;
+mod cwd;
 mod generic;
+mod prompt;
 
-pub use self::prompt::*;
+pub use self::cwd::*;
 pub use self::generic::*;
+pub use self::prompt::*;
 
 /// Representation of config options that all modules have
 #[derive(Debug, PartialEq)]

@@ -30,3 +30,26 @@ pub fn format_prompt(c: &Config,
 
     Ok(format_result)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_prompt() {
+        let mut c = Config::new();
+
+        c.set("modules.prompt.style_success.background", "green")
+            .unwrap();
+        c.set("modules.prompt.style_error.background", "red")
+            .unwrap();
+
+        // Exit code of 0 should be green
+        let result = format_prompt(&c, 0, None, Shell::Bash).unwrap();
+        assert_eq!(result.next_bg, Some(Color::Green));
+
+        // Exit code of non-zero should be red
+        let result = format_prompt(&c, 1, None, Shell::Bash).unwrap();
+        assert_eq!(result.next_bg, Some(Color::Red));
+    }
+}
