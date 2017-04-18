@@ -1,19 +1,19 @@
+use std::env;
+use std::iter::FromIterator;
+use std::path::PathBuf;
+
 use ansi_term::Color;
 use config::{Config, Value};
 use clap::Shell;
 
-use utils::{ConvertError, FormatResult};
+use utils::{ModuleError, FormatResult};
 
 use modules;
 
 pub fn format_cwd(c: &Config,
                   next_bg: Option<Color>,
                   shell: Shell)
-                  -> Result<FormatResult, ConvertError> {
-    use std::env;
-    use std::iter::FromIterator;
-    use std::path::PathBuf;
-
+                  -> Result<FormatResult, ModuleError> {
     let options = modules::read_options("cwd", c)?;
 
     let mut cwd = if let Ok(pwd) = env::var("PWD") {
@@ -45,14 +45,14 @@ pub fn format_cwd(c: &Config,
             Value::Integer(n) => {
                 // Value must be a valid usize
                 if n < 0 {
-                    return Err(ConvertError::InvalidForm);
+                    return Err(ModuleError::InvalidForm);
                 } else {
                     n as usize
                 }
             }
             _ => {
                 // Passing in anything other than an integer is an error
-                return Err(ConvertError::InvalidForm);
+                return Err(ModuleError::InvalidForm);
             }
         }
     } else {
