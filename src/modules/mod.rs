@@ -4,14 +4,16 @@ use ansi_term::{ANSIString, Color, Style};
 use config::Config;
 use clap::Shell;
 
-use utils::ConvertError;
+use utils::ModuleError;
 
 mod cwd;
 mod generic;
+mod git;
 mod prompt;
 
 pub use self::cwd::*;
 pub use self::generic::*;
+pub use self::git::*;
 pub use self::prompt::*;
 
 /// Representation of config options that all modules have
@@ -63,9 +65,9 @@ pub struct ModuleStyle {
 /// padding, separator, and style will be fetched using
 /// "modules.<key>.<padding/etc>".
 ///
-/// Returns a `ConvertError` if any of the options in the config file
+/// Returns a `ModuleError` if any of the options in the config file
 /// fail to be parsed.
-pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, ConvertError> {
+pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, ModuleError> {
     use config::Value;
 
     // TODO: Extract this into another function? In the interests of
@@ -74,7 +76,7 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Convert
         match val {
             Value::String(s) => s,
             _ => {
-                return Err(ConvertError::InvalidForm);
+                return Err(ModuleError::InvalidForm);
             }
         }
     } else {
@@ -85,7 +87,7 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Convert
         match val {
             Value::String(s) => s,
             _ => {
-                return Err(ConvertError::InvalidForm);
+                return Err(ModuleError::InvalidForm);
             }
         }
     } else {
@@ -96,7 +98,7 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Convert
         match val {
             Value::String(s) => s,
             _ => {
-                return Err(ConvertError::InvalidForm);
+                return Err(ModuleError::InvalidForm);
             }
         }
     } else {
@@ -107,7 +109,7 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Convert
         match val {
             Value::String(s) => Some(s),
             _ => {
-                return Err(ConvertError::InvalidForm);
+                return Err(ModuleError::InvalidForm);
             }
         }
     } else {
@@ -130,9 +132,9 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Convert
 /// `key` refers to the style of the module, for example,
 /// "modules.prompt.style_success".
 ///
-/// Returns a `ConvertError` if any of the options in the config file
+/// Returns a `ModuleError` if any of the options in the config file
 /// fail to be parsed.
-pub fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ConvertError> {
+pub fn read_style(key: &str, config: &Config) -> Result<ModuleStyle, ModuleError> {
     // The layout of a config file looks something like this:
     // [modules.<module_name>]
     // separator = "something"
@@ -249,7 +251,7 @@ fn style_from_modulestyle(s: &ModuleStyle) -> Style {
 /// Attempts to create an `ansi_term::Color` from the provided
 /// `Config`.
 ///
-/// Returns a `ConvertError::InvalidForm` if none of the conversions
+/// Returns a `ModuleError::InvalidForm` if none of the conversions
 /// succeed, or if an invalid type is provided. Will return `Ok(None)`
 /// if the provided `key` has no value within the `config`.
 ///
@@ -264,7 +266,7 @@ fn style_from_modulestyle(s: &ModuleStyle) -> Style {
 /// assert_eq!(try_color_from_config("background", &c),
 ///     Ok(Some(Color::Blue)));
 /// ```
-fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, ConvertError> {
+fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, ModuleError> {
     use config::Value;
 
     let result = if let Some(val) = config.get(key) {
@@ -272,7 +274,7 @@ fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, Co
             Value::Integer(i) => {
                 // First, check whether it would be a valid u8
                 if i < 0 || i > 255 {
-                    Err(ConvertError::InvalidForm)
+                    Err(ModuleError::InvalidForm)
                 } else {
                     Ok(Some(Color::Fixed(i as u8)))
                 }
@@ -284,15 +286,15 @@ fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, Co
                     Ok(Some(color))
                 } else if let Ok(color) = try_fixed_from_str(&s) {
                     Ok(Some(color))
+                } else if let Ok(color) = try_rgb_from_str(&s) {
+                    Ok(Some(color))
                 } else {
-                    // If this one operation doesn't succeed, then we
-                    // consider the whole function to have failed
-                    Ok(Some(try_rgb_from_str(&s)?))
+                    Err(ModuleError::InvalidForm)
                 }
             }
             _ => {
                 // Invalid type
-                Err(ConvertError::InvalidForm)
+                Err(ModuleError::InvalidForm)
             }
         }
     } else {
@@ -306,9 +308,9 @@ fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, Co
 /// Attempts to create a `Style` representing text style properties
 /// from a `Config`.
 ///
-/// Returns a `ConvertError` if the input cannot be parsed into a
+/// Returns a `ModuleError` if the input cannot be parsed into a
 /// `Style`.
-fn try_text_props_from_config(key: &str, config: &Config) -> Result<Option<Style>, ConvertError> {
+fn try_text_props_from_config(key: &str, config: &Config) -> Result<Option<Style>, ModuleError> {
     use config::Value;
 
     let result = if let Some(val) = config.get(key) {
@@ -320,7 +322,7 @@ fn try_text_props_from_config(key: &str, config: &Config) -> Result<Option<Style
                 let arr = arr.into_iter().map(|s| s.into_str().unwrap()).collect();
                 Ok(Some(try_text_props_from_vec(arr)?))
             }
-            _ => Err(ConvertError::InvalidForm),
+            _ => Err(ModuleError::InvalidForm),
         }
     } else {
         Ok(None)
@@ -332,7 +334,7 @@ fn try_text_props_from_config(key: &str, config: &Config) -> Result<Option<Style
 /// Attempts to convert a string into an `ansi_term::Style`
 /// representing a single text property.
 ///
-/// Returns a `ConvertError::NoSuchMatch` if the provided string
+/// Returns a `ModuleError::NoSuchMatch` if the provided string
 /// doesn't match any of the text properties defined in crate
 /// `ansi_term`.
 ///
@@ -341,7 +343,7 @@ fn try_text_props_from_config(key: &str, config: &Config) -> Result<Option<Style
 /// assert_eq!(try_text_prop_from_str(Some("bold")),
 ///     Ok(Style::new().bold()));
 /// ```
-fn try_text_prop_from_str(s: Option<&str>) -> Result<Style, ConvertError> {
+fn try_text_prop_from_str(s: Option<&str>) -> Result<Style, ModuleError> {
     if let Some(s) = s {
         match s.to_lowercase().as_ref() {
             "bold" => Ok(Style::new().bold()),
@@ -352,7 +354,7 @@ fn try_text_prop_from_str(s: Option<&str>) -> Result<Style, ConvertError> {
             "reverse" => Ok(Style::new().reverse()),
             "strikethrough" => Ok(Style::new().strikethrough()),
             "underline" => Ok(Style::new().underline()),
-            _ => Err(ConvertError::NoSuchMatch),
+            _ => Err(ModuleError::NoSuchMatch),
         }
     } else {
         Ok(Style::new())
@@ -362,7 +364,7 @@ fn try_text_prop_from_str(s: Option<&str>) -> Result<Style, ConvertError> {
 /// Attempts to convert a `Vec` of strings into a single
 /// `ansi_term::Style` representing how text should be styled.
 ///
-/// Returns a `ConvertError::NoSuchMatch` if any of the strings in the
+/// Returns a `ModuleError::NoSuchMatch` if any of the strings in the
 /// `Vec` can't be parsed into a text style property.
 ///
 /// # Examples
@@ -371,7 +373,7 @@ fn try_text_prop_from_str(s: Option<&str>) -> Result<Style, ConvertError> {
 /// let style = try_text_props_from_vec(text_properties).unwrap();
 /// assert_eq!(style, Style::new().bold().underline());
 /// ```
-fn try_text_props_from_vec<S: Into<String>>(props: Vec<S>) -> Result<Style, ConvertError> {
+fn try_text_props_from_vec<S: Into<String>>(props: Vec<S>) -> Result<Style, ModuleError> {
     // This way, we can pass a Vec<String> OR a Vec<&str> (like we do
     // in the tests)
     let props: Vec<String> = props.into_iter().map(|i| i.into()).collect();
@@ -388,7 +390,7 @@ fn try_text_props_from_vec<S: Into<String>>(props: Vec<S>) -> Result<Style, Conv
             "strikethrough" => style.strikethrough(),
             "underline" => style.underline(),
             _ => {
-                return Err(ConvertError::NoSuchMatch);
+                return Err(ModuleError::NoSuchMatch);
             }
         }
     }
@@ -398,7 +400,7 @@ fn try_text_props_from_vec<S: Into<String>>(props: Vec<S>) -> Result<Style, Conv
 
 /// Attempts to convert a string into an `ansi_term::Color`.
 ///
-/// Returns a `ConvertError::NoSuchMatch` if the provided string
+/// Returns a `ModuleError::NoSuchMatch` if the provided string
 /// doesn't match any of the colors defined in crate `ansi_term`.
 ///
 /// # Examples
@@ -406,9 +408,9 @@ fn try_text_props_from_vec<S: Into<String>>(props: Vec<S>) -> Result<Style, Conv
 /// ```
 /// assert_eq!(try_color_from_str("black"), Ok(Color::Black));
 /// assert_eq!(try_color_from_str("green"), Ok(Color::Green));
-/// assert_eq!(try_color_from_str("turquoise"), Err(ConvertError::NoSuchMatch));
+/// assert_eq!(try_color_from_str("turquoise"), Err(ModuleError::NoSuchMatch));
 /// ```
-fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
+fn try_color_from_str(s: &str) -> Result<Color, ModuleError> {
     match s.to_lowercase().as_ref() {
         "black" => Ok(Color::Black),
         "red" => Ok(Color::Red),
@@ -418,13 +420,13 @@ fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
         "purple" => Ok(Color::Purple),
         "cyan" => Ok(Color::Cyan),
         "white" => Ok(Color::White),
-        _ => Err(ConvertError::NoSuchMatch),
+        _ => Err(ModuleError::NoSuchMatch),
     }
 }
 
 /// Attempts to convert a string into an `ansi_term::Color::RGB`.
 ///
-/// Returns a `ConvertError::InvalidForm` if the provided string is
+/// Returns a `ModuleError::InvalidForm` if the provided string is
 /// not a sequence of 3 `u8`s, separated by commas.
 ///
 /// # Examples
@@ -432,9 +434,9 @@ fn try_color_from_str(s: &str) -> Result<Color, ConvertError> {
 /// ```
 /// assert_eq!(try_rgb_from_str("(14, 76, 1)"), Ok(Color::RGB(14, 76, 1)));
 /// assert_eq!(try_rgb_from_str("0, 100, 0"), Ok(Color::RGB(0, 100, 0)));
-/// assert_eq!(try_rgb_from_str("1000, b, c, -1"), Err(ConvertError::InvalidForm));
+/// assert_eq!(try_rgb_from_str("1000, b, c, -1"), Err(ModuleError::InvalidForm));
 /// ```
-fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
+fn try_rgb_from_str(s: &str) -> Result<Color, ModuleError> {
     // Strip out non-integer characters
     let cleaned: Vec<String> = s.split(',')
         .map(|i| i.replace(|j| j == '(' || j == ')' || j == ' ', ""))
@@ -450,7 +452,7 @@ fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
     // get through, but we can still make "sense" of it so it's good
     // to go.
     if ints.len() != 3 {
-        Err(ConvertError::InvalidForm)
+        Err(ModuleError::InvalidForm)
     } else {
         Ok(Color::RGB(ints[0], ints[1], ints[2]))
     }
@@ -458,16 +460,16 @@ fn try_rgb_from_str(s: &str) -> Result<Color, ConvertError> {
 
 /// Attempts to convert a string into an `ansi_term::Color::Fixed`.
 ///
-/// Returns a `ConvertError::InvalidForm` if the provided string fails
+/// Returns a `ModuleError::InvalidForm` if the provided string fails
 /// to coerce into a `u8`.
 ///
 /// # Examples
 ///
 /// ```
 /// assert_eq!(try_fixed_from_str("63"), Ok(Color::Fixed(63)));
-/// assert_eq!(try_fixed_from_str("257"), Err(ConvertError::InvalidForm));
+/// assert_eq!(try_fixed_from_str("257"), Err(ModuleError::InvalidForm));
 /// ```
-fn try_fixed_from_str(s: &str) -> Result<Color, ConvertError> {
+fn try_fixed_from_str(s: &str) -> Result<Color, ModuleError> {
     Ok(Color::Fixed(s.parse::<u8>()?))
 }
 
@@ -524,7 +526,7 @@ mod tests {
 
         // Error in one of the options
         c.set("modules.prompt.padding_left", true).unwrap();
-        assert_eq!(read_options("prompt", &c), Err(ConvertError::InvalidForm));
+        assert_eq!(read_options("prompt", &c), Err(ModuleError::InvalidForm));
     }
 
     #[test]
@@ -561,7 +563,7 @@ mod tests {
         c.set("modules.prompt.style.foreground", "(0, 0, 0, 0)")
             .unwrap();
         assert_eq!(read_style("modules.prompt.style", &c),
-                   Err(ConvertError::InvalidForm));
+                   Err(ModuleError::InvalidForm));
     }
 
     #[test]
@@ -585,7 +587,7 @@ mod tests {
         // Text properties are an invalid type
         c.set("text_properties", true).unwrap();
         assert_eq!(try_text_props_from_config("text_properties", &c),
-                   Err(ConvertError::InvalidForm));
+                   Err(ModuleError::InvalidForm));
     }
 
     #[test]
@@ -606,7 +608,7 @@ mod tests {
         // Invalid text property
         let props = vec!["hidden", "invalid"];
         assert_eq!(try_text_props_from_vec(props),
-                   Err(ConvertError::NoSuchMatch));
+                   Err(ModuleError::NoSuchMatch));
     }
 
     #[test]
@@ -620,7 +622,7 @@ mod tests {
 
         // Invalid text property
         assert_eq!(try_text_prop_from_str(Some("invalid")),
-                   Err(ConvertError::NoSuchMatch));
+                   Err(ModuleError::NoSuchMatch));
     }
 
     #[test]
@@ -653,16 +655,16 @@ mod tests {
         // fg set to an invalid u8
         c.set("foreground", -1).unwrap();
         assert_eq!(try_color_from_config("foreground", &c),
-                   Err(ConvertError::InvalidForm));
+                   Err(ModuleError::InvalidForm));
 
         // bg set to an invalid type
         c.set("background", true).unwrap();
         assert_eq!(try_color_from_config("background", &c),
-                   Err(ConvertError::InvalidForm));
+                   Err(ModuleError::InvalidForm));
 
         c.set("background", vec!["a", "b", "c"]).unwrap();
         assert_eq!(try_color_from_config("background", &c),
-                   Err(ConvertError::InvalidForm));
+                   Err(ModuleError::InvalidForm));
     }
 
     #[test]
@@ -778,7 +780,7 @@ mod tests {
         assert_eq!(try_color_from_str("blue"), Ok(Color::Blue));
 
         // Not part of the `ansi_term::Color` enum
-        assert_eq!(try_color_from_str("teal"), Err(ConvertError::NoSuchMatch));
+        assert_eq!(try_color_from_str("teal"), Err(ModuleError::NoSuchMatch));
     }
 
     #[test]
@@ -788,8 +790,8 @@ mod tests {
         assert_eq!(try_fixed_from_str("100"), Ok(Color::Fixed(100)));
 
         // Inputs that can't be parsed to u8
-        assert_eq!(try_fixed_from_str("256"), Err(ConvertError::InvalidForm));
-        assert_eq!(try_fixed_from_str("-1"), Err(ConvertError::InvalidForm));
+        assert_eq!(try_fixed_from_str("256"), Err(ModuleError::InvalidForm));
+        assert_eq!(try_fixed_from_str("-1"), Err(ModuleError::InvalidForm));
     }
 
     #[test]
@@ -804,15 +806,15 @@ mod tests {
 
         // Improperly formed ("too many" inputs)
         assert_eq!(try_rgb_from_str("(0, 0, 0,)"),
-                   Err(ConvertError::InvalidForm));
+                   Err(ModuleError::InvalidForm));
 
         // Too few inputs
-        assert_eq!(try_rgb_from_str("(0, 0)"), Err(ConvertError::InvalidForm));
+        assert_eq!(try_rgb_from_str("(0, 0)"), Err(ModuleError::InvalidForm));
 
         // Inputs aren't u8's
         assert_eq!(try_rgb_from_str("(1000, 0, 0)"),
-                   Err(ConvertError::InvalidForm));
+                   Err(ModuleError::InvalidForm));
         assert_eq!(try_rgb_from_str("(0, 0, -1)"),
-                   Err(ConvertError::InvalidForm));
+                   Err(ModuleError::InvalidForm));
     }
 }

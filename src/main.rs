@@ -17,6 +17,8 @@ use modules::*;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const APP_NAME: &'static str = "contrail";
+
+// Used for modules that only return config error-related Results
 const CONFIG_ERR: &'static str = "There was a problem while parsing the config file!";
 
 fn main() {
@@ -80,8 +82,11 @@ fn main() {
     let mut next_bg: Option<Color> = None;
     for name in &module_names {
         let result = match name.as_ref() {
-            "prompt" => format_prompt(&c, exit_code, next_bg, shell).expect(CONFIG_ERR),
             "cwd" => format_cwd(&c, next_bg, shell).expect(CONFIG_ERR),
+            "git" => {
+                format_git(&c, next_bg, shell).expect("There was an error with the git module!")
+            }
+            "prompt" => format_prompt(&c, exit_code, next_bg, shell).expect(CONFIG_ERR),
             s => format_generic(s, &c, next_bg, shell).expect(CONFIG_ERR),
         };
 
