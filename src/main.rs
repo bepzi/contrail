@@ -72,9 +72,9 @@ fn main() {
             .rev()
             .collect()
     } else {
-        vec![String::from("cwd"),
+        vec![String::from("prompt"),
              String::from("git"),
-             String::from("prompt")]
+             String::from("cwd")]
     };
 
     let mut formatted_strings: Vec<ANSIString<'static>> = Vec::new();
