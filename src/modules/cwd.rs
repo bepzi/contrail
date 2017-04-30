@@ -10,6 +10,11 @@ use utils::{Error, ErrorKind, FormatResult};
 
 use modules;
 
+/// Formats the current working directory using whatever options are
+/// present in the config file provided.
+///
+/// Returns an `Error` if it encounters any errors while parsing the
+/// config file.
 pub fn format_cwd(c: &Config, next_bg: Option<Color>, shell: Shell) -> Result<FormatResult, Error> {
     let options = modules::read_options("cwd", c)?;
 
