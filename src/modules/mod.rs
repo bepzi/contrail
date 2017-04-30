@@ -183,10 +183,20 @@ pub fn format_for_module<S: Into<String>>(s: S,
     // don't want the shell to mistakenly think there's fewer
     // characters remaining on the current line than there actually
     // are.
-    let (len_esc_prefix, len_esc_suffix) = match shell {
-        Shell::Bash => ("\\[", "\\]"),
-        Shell::Zsh => ("%{", "%}"),
-        _ => panic!("Your shell is not supported yet!"),
+    let (len_esc_prefix, len_esc_suffix) = if options.style.background.is_none() &&
+                                              options.style.foreground.is_none() &&
+                                              next_bg.is_none() {
+        // But if there aren't any color codes that we need to
+        // escape, don't set the length escape codes because we
+        // don't want the shell to have to deal with them if
+        // they're unnecessary
+        ("", "")
+    } else {
+        match shell {
+            Shell::Bash => ("\\[", "\\]"),
+            Shell::Zsh => ("%{", "%}"),
+            _ => panic!("Your shell is not supported yet!"),
+        }
     };
 
     // Every time there is a color escape-sequence, it must be
@@ -665,13 +675,16 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_panic_on_unsupported_shell() {
+        // We must include at least one color, because we only want to
+        // panic if we're using the length escape sequences AND the
+        // shell is unsupported.
         let options = ModuleOptions {
             output: None,
             padding_left: String::new(),
             padding_right: String::new(),
             separator: String::new(),
             style: ModuleStyle {
-                background: None,
+                background: Some(Color::Blue),
                 foreground: None,
                 text_properties: None,
             },
