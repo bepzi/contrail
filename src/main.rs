@@ -18,9 +18,6 @@ use modules::*;
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 const APP_NAME: &'static str = "contrail";
 
-// Used for modules that only return config error-related Results
-const CONFIG_ERR: &'static str = "There was a problem while parsing the config file!";
-
 fn main() {
     let matches = App::new(APP_NAME)
         .version(VERSION)
@@ -58,8 +55,8 @@ fn main() {
         .expect("Exit code passed as argument was not a u8!");
 
     let shell = if let Some(s) = matches.value_of("shell") {
-        // This shouldn't panic, clap will enforce that correct shell
-        // types were passed at runtime
+        // This shouldn't panic, clap will enforce that the correct
+        // shell types were passed at runtime
         Shell::from_str(s).expect("Invalid shell type passed!")
     } else {
         Shell::Bash
@@ -72,6 +69,8 @@ fn main() {
             .rev()
             .collect()
     } else {
+        // The actual order is "cwd", "git", "prompt", but we must
+        // manually reverse it
         vec![String::from("prompt"),
              String::from("git"),
              String::from("cwd")]
@@ -82,12 +81,12 @@ fn main() {
     let mut next_bg: Option<Color> = None;
     for name in &module_names {
         let result = match name.as_ref() {
-            "cwd" => format_cwd(&c, next_bg, shell).expect(CONFIG_ERR),
-            "git" => {
-                format_git(&c, next_bg, shell).expect("There was an error with the git module!")
-            }
-            "prompt" => format_prompt(&c, exit_code, next_bg, shell).expect(CONFIG_ERR),
-            s => format_generic(s, &c, next_bg, shell).expect(CONFIG_ERR),
+            // If errors are encountered, just crash and display the
+            // error message
+            "cwd" => format_cwd(&c, next_bg, shell).unwrap_or_else(|err| panic!("{}", err)),
+            "git" => format_git(&c, next_bg, shell).unwrap_or_else(|err| panic!("{}", err)),
+            "prompt" => format_prompt(&c, exit_code, next_bg, shell).unwrap_or_else(|err| panic!("{}", err)),
+            s => format_generic(s, &c, next_bg, shell).unwrap_or_else(|err| panic!("{}", err)),
         };
 
         // Only update the next_bg if we successfully formatted. The

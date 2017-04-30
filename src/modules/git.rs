@@ -5,20 +5,17 @@ use config::Config;
 use clap::Shell;
 use git2::{Branch, Repository};
 
-use utils::{ModuleError, FormatResult};
+use utils::{Error, FormatResult};
 
 use modules;
 
 /// Finds and formats information about the current git repository, if
 /// any.
 ///
-/// Returns a `ModuleError` if there is an error while reading the
-/// config file, or if errors are encountered while fetching
-/// repository information.
-pub fn format_git(c: &Config,
-                  next_bg: Option<Color>,
-                  shell: Shell)
-                  -> Result<FormatResult, ModuleError> {
+/// Returns an `Error` if there is an error while reading the config
+/// file. Errors encountered while fetching information about the
+/// current repository are simply ignored.
+pub fn format_git(c: &Config, next_bg: Option<Color>, shell: Shell) -> Result<FormatResult, Error> {
     // This is one of the few modules that actually can return `None`
     // for its output. If that happens, no part of the module
     // (separator, padding, etc.) will show up in the prompt. (It will
@@ -38,8 +35,14 @@ pub fn format_git(c: &Config,
     let mut output = String::new();
 
     if let Ok(repo) = Repository::discover(cwd) {
-        // Find and print the branch name ("master", etc...)
-        let local = repo.head()?;
+        // Find and print the branch name ("master", etc...), but if
+        // the repository exists and the HEAD doesn't, just return
+        let local = if let Ok(h) = repo.head() {
+            h
+        } else {
+            return Ok(FormatResult::default());
+        };
+
         if let Some(name) = local.shorthand() {
             output.push_str(name);
         }

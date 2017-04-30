@@ -6,14 +6,11 @@ use ansi_term::Color;
 use config::{Config, Value};
 use clap::Shell;
 
-use utils::{ModuleError, FormatResult};
+use utils::{Error, ErrorKind, FormatResult};
 
 use modules;
 
-pub fn format_cwd(c: &Config,
-                  next_bg: Option<Color>,
-                  shell: Shell)
-                  -> Result<FormatResult, ModuleError> {
+pub fn format_cwd(c: &Config, next_bg: Option<Color>, shell: Shell) -> Result<FormatResult, Error> {
     let options = modules::read_options("cwd", c)?;
 
     let mut cwd = if let Ok(pwd) = env::var("PWD") {
@@ -45,14 +42,16 @@ pub fn format_cwd(c: &Config,
             Value::Integer(n) => {
                 // Value must be a valid usize
                 if n < 0 {
-                    return Err(ModuleError::InvalidForm);
+                    return Err(Error::new(ErrorKind::InvalidTypeInConfig,
+                                          &format!("expected usize, got: {:?}", n)));
                 } else {
                     n as usize
                 }
             }
             _ => {
                 // Passing in anything other than an integer is an error
-                return Err(ModuleError::InvalidForm);
+                return Err(Error::new(ErrorKind::InvalidTypeInConfig,
+                                      &format!("expected usize, got: {:?}", val)));
             }
         }
     } else {

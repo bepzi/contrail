@@ -1,11 +1,10 @@
 use std::convert::From;
-use std::error::Error;
+use std::error;
 use std::fmt;
 use std::num::ParseIntError;
 
 use ansi_term::{ANSIString, Color};
 use config::{Config, Value};
-use git2;
 
 /// Type that will be returned when a module is formatted
 #[derive(Debug, Default)]
@@ -14,49 +13,53 @@ pub struct FormatResult {
     pub next_bg: Option<Color>,
 }
 
+/// Struct representation of an Error encountered in the program
 #[derive(Debug, PartialEq)]
-/// Error type for when parsing a config file to another type fails
-pub enum ModuleError {
-    /// Input doesn't correspond to a valid result
-    NoSuchMatch,
-    /// Input is malformed and cannot be parsed
-    InvalidForm,
-    /// An error was encountered while creating the output
-    FormatFailure,
+pub struct Error {
+    kind: ErrorKind,
+    message: String,
 }
 
-impl fmt::Display for ModuleError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+/// Representation of specific errors that can be encountered
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ErrorKind {
+    /// Input in config was not one of the allowed types
+    InvalidTypeInConfig,
+    /// Input in config didn't correspond to anything meaningful
+    NoSuchMatchInConfig,
+    /// Input in config was strictly malformed and couldn't be parsed
+    ConfigParseFailure,
+}
+
+impl Error {
+    pub fn new(kind: ErrorKind, msg: &str) -> Error {
+        Error {
+            kind: kind,
+            message: msg.to_string(),
+        }
     }
 }
 
-impl Error for ModuleError {
+impl error::Error for Error {
     fn description(&self) -> &str {
-        match *self {
-            ModuleError::NoSuchMatch => "no match was found for the provided input",
-            ModuleError::InvalidForm => "provided input was malformed and could not be parsed",
-            ModuleError::FormatFailure => "there was an error while trying to format the output",
-        }
+        &self.message
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}: {}", self.kind, self.message)
     }
 }
 
 // So that we can use try!() and ? to return early if we encounter a
 // ParseIntError
-impl From<ParseIntError> for ModuleError {
-    fn from(_: ParseIntError) -> ModuleError {
-        ModuleError::InvalidForm
+impl From<ParseIntError> for Error {
+    fn from(e: ParseIntError) -> Error {
+        use std::error::Error;
+        self::Error::new(ErrorKind::InvalidTypeInConfig, e.description())
     }
 }
-
-// For when we encounter an error while trying to fetch data about a
-// git repo
-impl From<git2::Error> for ModuleError {
-    fn from(_: git2::Error) -> ModuleError {
-        ModuleError::FormatFailure
-    }
-}
-
 
 /// Gets an array from a config file using a key.
 ///
