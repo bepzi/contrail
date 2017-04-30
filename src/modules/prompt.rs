@@ -2,7 +2,7 @@ use ansi_term::Color;
 use config::Config;
 use clap::Shell;
 
-use utils::{ModuleError, FormatResult};
+use utils::{Error, FormatResult};
 
 use modules;
 
@@ -10,7 +10,7 @@ pub fn format_prompt(c: &Config,
                      exit_code: u8,
                      next_bg: Option<Color>,
                      shell: Shell)
-                     -> Result<FormatResult, ModuleError> {
+                     -> Result<FormatResult, Error> {
     let mut options = modules::read_options("prompt", c)?;
 
     let style_success = modules::read_style("modules.prompt.style_success", c)?;
