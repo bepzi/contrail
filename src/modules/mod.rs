@@ -184,8 +184,7 @@ pub fn format_for_module<S: Into<String>>(s: S,
     // characters remaining on the current line than there actually
     // are.
     let (len_esc_prefix, len_esc_suffix) = if options.style.background.is_none() &&
-                                              options.style.foreground.is_none() &&
-                                              next_bg.is_none() {
+                                              options.style.foreground.is_none() {
         // But if there aren't any color codes that we need to
         // escape, don't set the length escape codes because we
         // don't want the shell to have to deal with them if
@@ -215,7 +214,20 @@ pub fn format_for_module<S: Into<String>>(s: S,
     );
 
     // We must format the separator differently depending on whether
-    // there exists a visible module after this one or not.
+    // there exists a visible module after this one or not. Length
+    // escape sequences should only be present if they're really
+    // necessary
+    let (len_esc_prefix, len_esc_suffix) = if next_bg.is_none() &&
+                                              options.style.background.is_none() {
+        ("", "")
+    } else {
+        match shell {
+            Shell::Bash => ("\\[", "\\]"),
+            Shell::Zsh => ("%{", "%}"),
+            _ => panic!("Your shell is not supported yet!"),
+        }
+    };
+
     let separator_style = ModuleStyle {
         foreground: options.style.background,
         background: next_bg,
