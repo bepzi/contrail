@@ -6,6 +6,11 @@ use utils::{Error, FormatResult};
 
 use modules;
 
+/// Formats the prompt module using whatever options are present in
+/// the config file provided.
+///
+/// Returns an `Error` if it encounters any errors while parsing the
+/// config file.
 pub fn format_prompt(c: &Config,
                      exit_code: u8,
                      next_bg: Option<Color>,
