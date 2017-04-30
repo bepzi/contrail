@@ -27,3 +27,28 @@ pub fn format_generic(name: &str,
         Ok(FormatResult::default())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_generic() {
+        use ansi_term::ANSIString;
+
+        let mut c = Config::new();
+
+        // Not in the config file == nothing to print
+        assert_eq!(format_generic("nonexistant", &c, None, Shell::Bash)
+                       .unwrap()
+                       .output,
+                   None);
+
+        c.set("modules.exists.output", "hello").unwrap();
+
+        assert_eq!(format_generic("exists", &c, None, Shell::Bash)
+                       .unwrap()
+                       .output,
+                   Some(ANSIString::from(" hello ")));
+    }
+}
