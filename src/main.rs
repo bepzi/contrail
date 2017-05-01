@@ -84,8 +84,15 @@ fn main() {
             // If errors are encountered, just crash and display the
             // error message
             "cwd" => format_cwd(&c, next_bg, shell).unwrap_or_else(|err| panic!("{}", err)),
+            "exit_code" => {
+                format_exit_code(&c, exit_code, next_bg, shell).unwrap_or_else(|err| {
+                                                                                   panic!("{}", err)
+                                                                               })
+            }
             "git" => format_git(&c, next_bg, shell).unwrap_or_else(|err| panic!("{}", err)),
-            "prompt" => format_prompt(&c, exit_code, next_bg, shell).unwrap_or_else(|err| panic!("{}", err)),
+            "prompt" => {
+                format_prompt(&c, exit_code, next_bg, shell).unwrap_or_else(|err| panic!("{}", err))
+            }
             s => format_generic(s, &c, next_bg, shell).unwrap_or_else(|err| panic!("{}", err)),
         };
 
