@@ -1,7 +1,6 @@
 [package]
 name = "contrail"
-version = "0.1.0"
-authors = ["B <ben01189998819991197253@users.noreply.github.com>"]
+version = "0.2.0"
 
 [dependencies]
 ansi_term = "0.9"
