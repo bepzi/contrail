@@ -6,7 +6,7 @@ and [bash-powerline](https://github.com/riobard/bash-powerline).
 
 Customizations are made via a TOML file.
 
-![In action](examples.main.png)
+![In action](examples/main.png)
 
 **Disclaimer:** A large part of this program's functionality depends
 on the user's shell, font, and terminal emulator. Each shell and
