@@ -7,11 +7,13 @@ use clap::Shell;
 use utils::{Error, ErrorKind};
 
 mod cwd;
+mod exit_code;
 mod generic;
 mod git;
 mod prompt;
 
 pub use self::cwd::*;
+pub use self::exit_code::*;
 pub use self::generic::*;
 pub use self::git::*;
 pub use self::prompt::*;
