@@ -111,7 +111,7 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Error> 
         None
     };
 
-    let style = read_style(&format!("modules.{}.style", key), &config)?;
+    let style = read_style(&format!("modules.{}.style", key), config)?;
 
     Ok(ModuleOptions {
            output: overridden_output,
@@ -125,7 +125,7 @@ pub fn read_options(key: &str, config: &Config) -> Result<ModuleOptions, Error> 
 /// Gets a module's style from a config file.
 ///
 /// `key` refers to the style of the module, for example,
-/// "modules.prompt.style_success".
+/// `modules.prompt.style_success`.
 ///
 /// Returns an `Error` if any of the options in the config file fail
 /// to be parsed.
@@ -284,7 +284,7 @@ fn style_from_modulestyle(s: &ModuleStyle) -> Style {
 ///     Ok(Some(Color::Blue)));
 /// ```
 fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, Error> {
-    let result = if let Some(val) = config.get(key) {
+    if let Some(val) = config.get(key) {
         match val {
             Value::Integer(i) => {
                 // First, check whether it would be a valid u8
@@ -298,11 +298,11 @@ fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, Er
             Value::String(ref s) => {
                 // It *may* coerce into a `Color`, `Color::Fixed` or
                 // `Color::RGB`.
-                if let Ok(color) = try_color_from_str(&s) {
+                if let Ok(color) = try_color_from_str(s) {
                     Ok(Some(color))
-                } else if let Ok(color) = try_fixed_from_str(&s) {
+                } else if let Ok(color) = try_fixed_from_str(s) {
                     Ok(Some(color))
-                } else if let Ok(color) = try_rgb_from_str(&s) {
+                } else if let Ok(color) = try_rgb_from_str(s) {
                     Ok(Some(color))
                 } else {
                     Err(Error::new(ErrorKind::ConfigParseFailure,
@@ -319,9 +319,7 @@ fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, Er
     } else {
         // The key didn't correspond to anything within the config
         Ok(None)
-    };
-
-    result
+    }
 }
 
 /// Attempts to create a `Style` representing text style properties
@@ -329,7 +327,7 @@ fn try_color_from_config(key: &str, config: &Config) -> Result<Option<Color>, Er
 ///
 /// Returns an `Error` if the input cannot be parsed into a `Style`.
 fn try_text_props_from_config(key: &str, config: &Config) -> Result<Option<Style>, Error> {
-    let result = if let Some(val) = config.get(key) {
+    if let Some(val) = config.get(key) {
         // The only two valid types for this option are an array of
         // strings or a single string
         match val {
@@ -345,9 +343,7 @@ fn try_text_props_from_config(key: &str, config: &Config) -> Result<Option<Style
         }
     } else {
         Ok(None)
-    };
-
-    result
+    }
 }
 
 /// Attempts to convert a string into an `ansi_term::Style`
@@ -443,8 +439,8 @@ fn try_color_from_str(s: &str) -> Result<Color, Error> {
         "cyan" => Ok(Color::Cyan),
         "white" => Ok(Color::White),
         _ => {
-            return Err(Error::new(ErrorKind::NoSuchMatchInConfig,
-                                  &format!("unknown color: {:?}", s)));
+            Err(Error::new(ErrorKind::NoSuchMatchInConfig,
+                           &format!("unknown color: {:?}", s)))
         }
     }
 }
