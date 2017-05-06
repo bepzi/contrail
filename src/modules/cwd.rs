@@ -30,7 +30,7 @@ pub fn format_cwd(c: &Config, next_bg: Option<Color>, shell: Shell) -> Result<Fo
         // Fail silently if the "current directory" turns out to not
         // exist. We don't want to spew a bunch of error messages in
         // this circumstance, and this should be opaque to the user.
-        env::current_dir().unwrap_or(PathBuf::new())
+        env::current_dir().unwrap_or_default()
     };
 
     // Truncate leading instance of $HOME to just "~/"
