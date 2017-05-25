@@ -34,7 +34,7 @@ pub fn format_git(c: &Config, next_bg: Option<Color>, shell: Shell) -> Result<Fo
     // Holds the final output
     let mut output = String::new();
 
-    if let Ok(repo) = Repository::discover(cwd) {
+    if let Ok(repo) = Repository::open(cwd) {
         // Find and print the branch name ("master", etc...), but if
         // the repository exists and the HEAD doesn't, just return
         let local = if let Ok(h) = repo.head() {
