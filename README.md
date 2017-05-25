@@ -8,6 +8,8 @@ Customizations are made via a TOML file.
 
 ![In action](examples/main.png)
 
+![In action](examples/full_desktop.png)
+
 **Disclaimer:** A large part of this program's functionality depends
 on the user's shell, font, and terminal emulator. Each shell and
 terminal emulator supports different effects. Therefore, there may be
