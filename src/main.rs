@@ -15,8 +15,8 @@ mod modules;
 use utils::*;
 use modules::*;
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-const APP_NAME: &'static str = "contrail";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const APP_NAME: &str = "contrail";
 
 fn main() {
     let matches = App::new(APP_NAME)
@@ -40,7 +40,7 @@ fn main() {
                  .takes_value(true)
                  .possible_values(&["bash", "zsh", "fish", "powershell"]))
         .get_matches();
-
+    
     let mut c = Config::new();
 
     if let Some(f) = matches.value_of("config") {
