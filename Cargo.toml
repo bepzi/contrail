@@ -5,3 +5,4 @@ version = "0.3.0"
 [dependencies]
 clap = "2.29"
 config = "0.8"
+glob = "0.2"
