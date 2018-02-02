@@ -3,7 +3,5 @@ name = "contrail"
 version = "0.2.2"
 
 [dependencies]
-ansi_term = "0.9"
-clap = "2.22"
-config = "0.4"
-git2 = "0.6"
+clap = "2.29"
+config = "0.8"
