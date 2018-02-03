@@ -1,10 +1,8 @@
 extern crate clap;
 extern crate config;
-extern crate glob;
 
 use clap::{App, Arg};
 use config::Config;
-use glob::glob;
 
 use std::path::PathBuf;
 
@@ -28,7 +26,7 @@ fn main() {
                  .short("c")
                  .long("config")
                  .value_name("PATH")
-                 .help("Location of a folder containing config files")
+                 .help("Alternate location for the config file")
                  .takes_value(true))
         // .arg(Arg::with_name("shell")
         //          .long("shell")
@@ -37,39 +35,28 @@ fn main() {
         //          .possible_values(&["bash", "zsh", "fish", "powershell"]))
         .get_matches();
 
-    let mut settings = Config::default();
+    let mut settings: Config = Config::default();
 
-    let config_folder: PathBuf = if let Some(path) = matches.value_of("config") {
+    let config_path: PathBuf = if let Some(path) = matches.value_of("config") {
         PathBuf::from(path)
     } else {
         // User didn't specify a custom folder for config files
-        [HOME, ".config", APP_NAME].iter().collect()
+        [HOME, ".config", APP_NAME, MAIN_CONFIG_NAME]
+            .iter()
+            .collect()
     };
 
     // TODO: Don't panic if we're using the default folder location
-    if !config_folder.exists() {
+    if !config_path.exists() {
         panic!(
-            "config folder path \"{}\" does not exist",
-            config_folder.to_str().unwrap()
+            "config file \"{}\" does not exist",
+            config_path.to_str().unwrap()
         );
     }
 
-    let config_folder = config_folder.to_str().unwrap();
+    let config_path = config_path.to_str().unwrap();
 
     settings
-        .merge(config::File::with_name(&format!(
-            "{}/{}",
-            config_folder, MAIN_CONFIG_NAME
-        )))
-        .unwrap();
-
-    // Merge all the module config files
-    settings
-        .merge(
-            glob(&format!("{}/modules/*", config_folder))
-                .unwrap()
-                .map(|path| config::File::from(path.unwrap()))
-                .collect::<Vec<_>>(),
-        )
+        .merge(config::File::with_name(config_path))
         .unwrap();
 }
