@@ -36,13 +36,13 @@ fn main() {
 
     let (send, recv) = mpsc::channel();
 
-    for (i, each) in commands.into_iter().enumerate() {
+    for (i, each) in commands.iter().enumerate() {
         let tx = mpsc::Sender::clone(&send);
-        let cmd = each.clone();
+        let cmd = String::clone(&each.to_string());
 
         thread::spawn(move || {
             // Start the command call
-            let result = Command::new(cmd)
+            let result = Command::new(&cmd)
                 .output()
                 .expect(&format!("failed to execute commmand {}", cmd));
 
