@@ -42,7 +42,7 @@ fn main() {
 
         thread::spawn(move || {
             let (cmd, args) = split_options_from_command(&input);
-            
+
             // Start the command call
             let result = Command::new(&cmd)
                 .args(&args)
@@ -81,5 +81,93 @@ fn split_options_from_command(input: &str) -> (&str, Vec<&str>) {
         ("", vec![])
     } else {
         (args.remove(0), args)
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::split_options_from_command;
+
+    #[test]
+    fn no_option_commands() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: (&'a str, Vec<&'a str>),
+        }
+
+        let tests = vec![
+            Test {
+                input: "contrail",
+                expected: ("contrail", Vec::new()),
+            },
+            Test {
+                input: "contrail ",
+                expected: ("contrail", Vec::new()),
+            },
+            Test {
+                input: " contrail ",
+                expected: ("contrail", Vec::new()),
+            }
+        ];
+
+        for test in &tests {
+            assert_eq!(test.expected, split_options_from_command(test.input));
+        }
+    }
+
+    #[test]
+    fn single_option_commands() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: (&'a str, Vec<&'a str>),
+        }
+
+        let tests = vec![
+            Test {
+                input: "contrail -v",
+                expected: ("contrail", vec!["-v"]),
+            },
+            Test {
+                input: " contrail -v ",
+                expected: ("contrail", vec!["-v"]),
+            },
+            Test {
+                input: "ls -al",
+                expected: ("ls", vec!["-al"]),
+            }
+        ];
+
+        for test in &tests {
+            assert_eq!(test.expected, split_options_from_command(test.input));
+        }
+    }
+
+    #[test]
+    fn multiple_option_commands() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: (&'a str, Vec<&'a str>),
+        }
+
+        let tests = vec![
+            Test {
+                input: "contrail -v -g -a",
+                expected: ("contrail", vec!["-v", "-g", "-a"]),
+            },
+            Test {
+                input: " contrail -v -- \"Hello\" ",
+                expected: ("contrail", vec!["-v", "--", "\"Hello\""]),
+            },
+            // Probably not the desired result by the user, but it's
+            // their responsibility to format their commands correctly
+            Test {
+                input: "contrail -v ls -al",
+                expected: ("contrail", vec!["-v", "ls", "-al"]),
+            }
+        ];
+
+        for test in &tests {
+            assert_eq!(test.expected, split_options_from_command(test.input));
+        }
     }
 }
