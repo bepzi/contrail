@@ -38,11 +38,14 @@ fn main() {
 
     for (i, each) in commands.iter().enumerate() {
         let tx = mpsc::Sender::clone(&send);
-        let cmd = String::clone(&each.to_string());
+        let input: String = String::clone(&each.to_string());
 
         thread::spawn(move || {
+            let (cmd, args) = split_options_from_command(&input);
+            
             // Start the command call
             let result = Command::new(&cmd)
+                .args(&args)
                 .output()
                 .expect(&format!("failed to execute commmand {}", cmd));
 
@@ -68,5 +71,15 @@ fn main() {
 
     for each in &results {
         print!("{}", each.1);
+    }
+}
+
+fn split_options_from_command(input: &str) -> (&str, Vec<&str>) {
+    let mut args: Vec<&str> = input.split_whitespace().collect();
+
+    return if args.is_empty() {
+        ("", vec![])
+    } else {
+        (args.remove(0), args)
     }
 }
