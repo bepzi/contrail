@@ -28,6 +28,12 @@ lazy_static! {
                 .required(true)
                 .multiple(true),
         )
+        .arg(
+            Arg::with_name("newlines")
+                .long("strip-newlines")
+                .help("Behavior to take regarding stripping newlines")
+                .possible_values(&["trailing", "all"])
+        )
         .get_matches();
 }
 
