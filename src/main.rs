@@ -57,7 +57,7 @@ fn main() {
                 .expect(&format!("failed to execute commmand {}", cmd));
 
             if !result.status.success() {
-                panic!("command {} failed with exit code {}", cmd, result.status);
+                panic!("command {} failed with {}", cmd, result.status);
             }
 
             let stdout = String::from_utf8(result.stdout)
