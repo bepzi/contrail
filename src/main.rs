@@ -17,7 +17,7 @@ lazy_static! {
     // static lifetime, so this must be defined as static
     static ref MATCHES: ArgMatches<'static> = App::new(APP_NAME)
         .version(VERSION)
-        .about("Fast and configurable shell prompter")
+        .about("Asynchronous command executor and output concatenator.")
         .arg(
             Arg::with_name("command")
                 .short("c")
@@ -32,6 +32,7 @@ lazy_static! {
             Arg::with_name("separator")
                 .short("s")
                 .help("Draw a separating line between each command's output")
+                .requires("command")
         )
         .arg(
             Arg::with_name("newlines")

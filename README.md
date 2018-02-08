@@ -1,27 +1,25 @@
 # contrail
 
-Takes a series of commands, executes them asynchronously, then
+Takes in a series of commands, executes them asynchronously, and then
 concatenates their output in their original calling order.
 
 For example:
 
 ```bash
-contrail -c "echo Hello, world!" \
+contrail -s -c "echo Hello, world!" \
          -c "pwd" \
-         -c "ls" \
+         -c "whoami" \
          -c "git status"
 ```
 
 ```
+#1) `echo Hello, world!`
 Hello, world!
+#2) `pwd`
 /home/z/development/contrail
-#README.md#
-Cargo.lock
-Cargo.toml
-LICENSE
-README.md
-src
-target
+#3) `whoami`
+username
+#4) `git status`
 On branch 0.3-refactoring
 Your branch is up to date with 'origin/0.3-refactoring'.
 ```
