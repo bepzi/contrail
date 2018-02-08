@@ -32,7 +32,8 @@ lazy_static! {
             Arg::with_name("newlines")
                 .long("strip-newlines")
                 .help("Behavior to take regarding stripping newlines")
-                .possible_values(&["trailing", "all"])
+                .takes_value(true)
+                .possible_values(&["leading", "trailing", "all"])
         )
         .get_matches();
 }
@@ -71,28 +72,80 @@ fn main() {
     // Allow the receiver to close with all senders closed
     drop(send);
 
-    // Convert the results into the final printed out vector
+    // Convert the results into the final printed out vector. Since
+    // they were run asynchronously, they need to be put back into the
+    // original order they were called in
     let mut results: Vec<(usize, String)> = recv.iter().collect();
     results.sort();
 
     for each in &results {
-        print!("{}", each.1);
+        if let Some(newline_behavior) = MATCHES.value_of("newlines") {
+            print!("{}", strip_newlines(&each.1, newline_behavior));
+        } else {
+            print!("{}", each.1);
+        }
     }
 }
 
+// Removes newlines either from the beginning, end, or throughout an
+// input string. Valid stripping behaviors are "leading", "trailing",
+// or "all".
+fn strip_newlines(input: &str, behavior: &str) -> String {
+    let newlines: &[_] = &['\n', '\r'];
+
+    // TODO: Replace this with an enum
+    match behavior {
+        "leading" => input.trim_left_matches(newlines).to_string(),
+        "trailing" => input.trim_right_matches(newlines).to_string(),
+        "all" => input.replace(newlines, "").to_string(),
+        _ => panic!(
+            "unrecognized newline stripping behavior '{}', which should not happen",
+            behavior
+        ),
+    }
+}
+
+/// Separates the whitespace-delimited arguments passed to a command
+/// in a string. Returns a tuple with the first element being the
+/// command itself, and the second element a Vec containing each
+/// argument.
 fn split_options_from_command(input: &str) -> (&str, Vec<&str>) {
     let mut args: Vec<&str> = input.split_whitespace().collect();
 
-    return if args.is_empty() {
+    if args.is_empty() {
         ("", vec![])
     } else {
         (args.remove(0), args)
-    };
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::split_options_from_command;
+    use super::*;
+
+    #[test]
+    fn strip_leading_newlines() {
+        let input = String::from("\nHello, world!");
+        let expected = "Hello, world!";
+
+        assert_eq!(expected, strip_newlines(&input, "leading"));
+    }
+
+    #[test]
+    fn strip_trailing_newlines() {
+        let input = String::from("Hello, world!\n\r");
+        let expected = "Hello, world!";
+
+        assert_eq!(expected, strip_newlines(&input, "trailing"));
+    }
+
+    #[test]
+    fn strip_all_newlines() {
+        let input = String::from("\rThis \nstring \rhas \nmany \nnewlines.\r");
+        let expected = "This string has many newlines.";
+
+        assert_eq!(expected, strip_newlines(&input, "all"))
+    }
 
     #[test]
     fn no_option_commands() {
@@ -113,7 +166,7 @@ mod tests {
             Test {
                 input: " contrail ",
                 expected: ("contrail", Vec::new()),
-            }
+            },
         ];
 
         for test in &tests {
@@ -140,7 +193,7 @@ mod tests {
             Test {
                 input: "ls -al",
                 expected: ("ls", vec!["-al"]),
-            }
+            },
         ];
 
         for test in &tests {
@@ -169,7 +222,7 @@ mod tests {
             Test {
                 input: "contrail -v ls -al",
                 expected: ("contrail", vec!["-v", "ls", "-al"]),
-            }
+            },
         ];
 
         for test in &tests {
