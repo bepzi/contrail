@@ -29,6 +29,11 @@ lazy_static! {
                 .multiple(true),
         )
         .arg(
+            Arg::with_name("separator")
+                .short("s")
+                .help("Draw a separating line between each command's output")
+        )
+        .arg(
             Arg::with_name("newlines")
                 .long("strip-newlines")
                 .help("Behavior to take regarding stripping newlines")
@@ -78,7 +83,11 @@ fn main() {
     let mut results: Vec<(usize, String)> = recv.iter().collect();
     results.sort();
 
-    for each in &results {
+    for (i, each) in results.iter().enumerate() {
+        if MATCHES.is_present("separator") {
+            println!("#{}) `{}`", (i + 1), commands[i]);
+        }
+
         if let Some(newline_behavior) = MATCHES.value_of("newlines") {
             print!("{}", strip_newlines(&each.1, newline_behavior));
         } else {
@@ -93,7 +102,6 @@ fn main() {
 fn strip_newlines(input: &str, behavior: &str) -> String {
     let newlines: &[_] = &['\n', '\r'];
 
-    // TODO: Replace this with an enum
     match behavior {
         "leading" => input.trim_left_matches(newlines).to_string(),
         "trailing" => input.trim_right_matches(newlines).to_string(),
@@ -122,6 +130,12 @@ fn split_options_from_command(input: &str) -> (&str, Vec<&str>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[should_panic]
+    fn invalid_stripping_behavior_panics() {
+        strip_newlines("", "invalid behavior");
+    }
 
     #[test]
     fn strip_leading_newlines() {
