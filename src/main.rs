@@ -49,6 +49,9 @@ fn main() {
 
     let (send, recv) = mpsc::channel();
 
+    // We enumerate because we need to keep track of the original
+    // calling order. The commands won't finish in the same order they
+    // were called in.
     for (i, each) in commands.iter().enumerate() {
         let tx = mpsc::Sender::clone(&send);
         let input: String = String::clone(&each.to_string());
@@ -97,9 +100,9 @@ fn main() {
     }
 }
 
-// Removes newlines either from the beginning, end, or throughout an
-// input string. Valid stripping behaviors are "leading", "trailing",
-// or "all".
+/// Removes newlines either from the beginning, end, or throughout an
+/// input string. Valid stripping behaviors are "leading", "trailing",
+/// or "all".
 fn strip_newlines(input: &str, behavior: &str) -> String {
     let newlines: &[_] = &['\n', '\r'];
 
@@ -156,8 +159,8 @@ mod tests {
 
     #[test]
     fn strip_all_newlines() {
-        let input = String::from("\rThis \nstring \rhas \nmany \nnewlines.\r");
-        let expected = "This string has many newlines.";
+        let input = String::from("\rThis \nstring \rhad \nmany \nnewlines.\r");
+        let expected = "This string had many newlines.";
 
         assert_eq!(expected, strip_newlines(&input, "all"))
     }
@@ -225,7 +228,7 @@ mod tests {
 
         let tests = vec![
             Test {
-                input: "contrail -v -g -a",
+                input: "contrail -v  -g -a",
                 expected: ("contrail", vec!["-v", "-g", "-a"]),
             },
             Test {
