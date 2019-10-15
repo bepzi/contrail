@@ -3,6 +3,7 @@ extern crate clap;
 extern crate config;
 extern crate git2;
 
+use std::io::{stdout, Write};
 use std::str::FromStr;
 
 use ansi_term::{ANSIString, ANSIStrings, Color};
@@ -107,4 +108,5 @@ fn main() {
     }
 
     print!("{}", ANSIStrings(formatted_strings.as_slice()));
+    stdout().flush();
 }
